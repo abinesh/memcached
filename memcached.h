@@ -18,6 +18,18 @@
 #include <pthread.h>
 #include <unistd.h>
 
+
+
+#include <errno.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/wait.h>
+
+
+
+
+
+
 #include "protocol_binary.h"
 #include "cache.h"
 
@@ -585,4 +597,9 @@ typedef struct tagZoneBoundary {
 } ZoneBoundary;
 
 ZoneBoundary my_boundary,world_boundary;
+
+pthread_t join_request_listener_thread;
+
+#define PORT "11311" // the port users will be connecting to
+#define BACKLOG 10 // how many pending connections queue will hold
 
