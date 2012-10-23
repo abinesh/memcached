@@ -2711,6 +2711,14 @@ static unsigned long str_hash(char *str){
 
       return hash;
   }
+  static Point key_point(char *key){
+      Point p;
+      unsigned long hash = str_hash(key);
+      p.x = hash % (int)(world_boundary.to.x);
+      p.y = hash % (int)(world_boundary.to.y);
+      return p;
+  }
+
 
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
@@ -2732,8 +2740,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 out_string(c, "CLIENT_ERROR bad command line format");
                 return;
             }
+            Point resolved_point = key_point(key);
             if(settings.verbose > 1)
-                fprintf(stderr,"Key %s , hash = %ld\n", key,str_hash(key));
+                fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
             it = item_get(key, nkey);
             if (settings.detail_enabled) {
                 stats_prefix_record_get(key, nkey, NULL != it);
