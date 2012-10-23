@@ -573,3 +573,13 @@ extern void drop_privileges(void);
 
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
+
+typedef struct tagZoneBoundary {
+    float x1;
+    float y1;
+    float x2;
+    float y2;
+} ZoneBoundary;
+
+ZoneBoundary my_boundary,world_boundary;
+

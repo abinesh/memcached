@@ -3216,6 +3216,13 @@ static void process_slabs_automove_command(conn *c, token_t *tokens, const size_
     return;
 }
 
+static void print_boundaries(){
+    if(settings.verbose > 1){
+        fprintf(stderr,"world boundary[(%f,%f) to (%f,%f)]\n",world_boundary.x1,world_boundary.y1,world_boundary.x2,world_boundary.y2);
+        fprintf(stderr,"my boundary[(%f,%f) to (%f,%f)]\n",my_boundary.x1,my_boundary.y1,my_boundary.x2,my_boundary.y2);
+    }
+}
+
 static void process_command(conn *c, char *command) {
 
     token_t tokens[MAX_TOKENS];
@@ -4455,6 +4462,10 @@ static void usage(void) {
     printf("-p <num>      TCP port number to listen on (default: 11211)\n"
            "-U <num>      UDP port number to listen on (default: 11211, 0 is off)\n"
            "-s <file>     UNIX socket path to listen on (disables network support)\n"
+           "-x <num>      Lower boundary x coordinate\n"
+           "-y <num>      Lower boundary y coordinate\n"
+           "-X <num>      Upper boundary x coordinate\n"
+           "-Y <num>      Upper boundary y coordinate\n"
            "-A            enable ascii \"shutdown\" command\n"
            "-a <mask>     access mask for UNIX socket, in octal (default: 0700)\n"
            "-l <addr>     interface to listen on (default: INADDR_ANY, all addresses)\n"
@@ -4786,11 +4797,31 @@ int main (int argc, char **argv) {
           "I:"  /* Max item size */
           "S"   /* Sasl ON */
           "o:"  /* Extended generic options */
+          "x:"  /* lower x coordinate */
+          "y:"  /* lower y coordinate */
+          "X:"  /* upper x coordinate */
+          "Y:"  /* upper y coordinate */
         ))) {
         switch (c) {
         case 'A':
             /* enables "shutdown" command */
             settings.shutdown_command = true;
+            break;
+        case 'x':
+            my_boundary.x1=atof(optarg);
+            world_boundary.x1=my_boundary.x1;
+            break;
+        case 'X':
+            my_boundary.x2 = atof(optarg);
+            world_boundary.x2=my_boundary.x2;
+            break;
+        case 'y':
+            my_boundary.y1=atof(optarg);
+            world_boundary.y1=my_boundary.y1;
+            break;
+        case 'Y':
+            my_boundary.y2 = atof(optarg);
+            world_boundary.y2=my_boundary.y2;
             break;
 
         case 'a':
@@ -5240,6 +5271,8 @@ int main (int argc, char **argv) {
 
     /* Drop privileges no longer needed */
     drop_privileges();
+
+    print_boundaries();
 
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {
