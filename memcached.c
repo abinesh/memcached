@@ -2719,6 +2719,16 @@ static unsigned long str_hash(char *str){
       return p;
   }
 
+  static int is_within_boundary(Point p , ZoneBoundary boundary ){
+
+	  if (p.x<=boundary.to.x&&p.y<=boundary.to.y)
+	  {
+		 if(p.x>=boundary.from.x&&p.y>=boundary.from.y)
+			 return 1;
+	  }
+	  return 0;
+
+  }
 
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
@@ -2743,6 +2753,14 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             Point resolved_point = key_point(key);
             if(settings.verbose > 1)
                 fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
+
+            if(is_within_boundary(resolved_point,my_boundary)!=1)
+            {
+            	fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])", key,resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            	it=NULL;
+
+            }
+            else
             it = item_get(key, nkey);
             if (settings.detail_enabled) {
                 stats_prefix_record_get(key, nkey, NULL != it);
@@ -5314,3 +5332,4 @@ int main (int argc, char **argv) {
 
     return retval;
 }
+
