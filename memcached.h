@@ -574,11 +574,14 @@ extern void drop_privileges(void);
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
+typedef struct tagPoint{
+    float x;
+    float y;
+}Point;
+
 typedef struct tagZoneBoundary {
-    float x1;
-    float y1;
-    float x2;
-    float y2;
+    Point from;
+    Point to;
 } ZoneBoundary;
 
 ZoneBoundary my_boundary,world_boundary;

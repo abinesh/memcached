@@ -3229,8 +3229,8 @@ static void process_slabs_automove_command(conn *c, token_t *tokens, const size_
 
 static void print_boundaries(){
     if(settings.verbose > 1){
-        fprintf(stderr,"world boundary[(%f,%f) to (%f,%f)]\n",world_boundary.x1,world_boundary.y1,world_boundary.x2,world_boundary.y2);
-        fprintf(stderr,"my boundary[(%f,%f) to (%f,%f)]\n",my_boundary.x1,my_boundary.y1,my_boundary.x2,my_boundary.y2);
+        fprintf(stderr,"world boundary[(%f,%f) to (%f,%f)]\n",world_boundary.from.x,world_boundary.from.y,world_boundary.to.x,world_boundary.to.y);
+        fprintf(stderr,"my boundary[(%f,%f) to (%f,%f)]\n",my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
     }
 }
 
@@ -4819,20 +4819,20 @@ int main (int argc, char **argv) {
             settings.shutdown_command = true;
             break;
         case 'x':
-            my_boundary.x1=atof(optarg);
-            world_boundary.x1=my_boundary.x1;
+            my_boundary.from.x=atof(optarg);
+            world_boundary.from.x=my_boundary.from.x;
             break;
         case 'X':
-            my_boundary.x2 = atof(optarg);
-            world_boundary.x2=my_boundary.x2;
+            my_boundary.to.x = atof(optarg);
+            world_boundary.to.x=my_boundary.to.x;
             break;
         case 'y':
-            my_boundary.y1=atof(optarg);
-            world_boundary.y1=my_boundary.y1;
+            my_boundary.from.y=atof(optarg);
+            world_boundary.from.y=my_boundary.from.y;
             break;
         case 'Y':
-            my_boundary.y2 = atof(optarg);
-            world_boundary.y2=my_boundary.y2;
+            my_boundary.to.y = atof(optarg);
+            world_boundary.to.y=my_boundary.to.y;
             break;
 
         case 'a':
