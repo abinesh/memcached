@@ -2702,6 +2702,16 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens) {
     }
 }
 
+static unsigned long str_hash(char *str){
+      unsigned long hash = 5381;
+      int c;
+
+      while ((c = *str++)!='\0')
+          hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+      return hash;
+  }
+
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
     char *key;
@@ -2722,7 +2732,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 out_string(c, "CLIENT_ERROR bad command line format");
                 return;
             }
-
+            if(settings.verbose > 1)
+                fprintf(stderr,"Key %s , hash = %ld\n", key,str_hash(key));
             it = item_get(key, nkey);
             if (settings.detail_enabled) {
                 stats_prefix_record_get(key, nkey, NULL != it);
