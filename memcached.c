@@ -3260,10 +3260,9 @@ static void process_slabs_automove_command(conn *c, token_t *tokens, const size_
     return;
 }
 
-static void print_boundaries(){
+static void print_boundaries(ZoneBoundary b){
     if(settings.verbose > 1){
-        fprintf(stderr,"world boundary[(%f,%f) to (%f,%f)]\n",world_boundary.from.x,world_boundary.from.y,world_boundary.to.x,world_boundary.to.y);
-        fprintf(stderr,"my boundary[(%f,%f) to (%f,%f)]\n",my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+        fprintf(stderr,"[(%f,%f) to (%f,%f)]\n",b.from.x,b.from.y,b.to.x,b.to.y);
     }
 }
 
@@ -3329,7 +3328,6 @@ static void *connect_and_split_thread_routine(void *args)
 		perror("recv");
 		exit(1);
 	}
-
 	buf[numbytes] = '\0';
 	printf("client: received '%s'\n",buf);
 	close(sockfd);
@@ -3348,7 +3346,9 @@ static void sigchld_handler(int s)
 
 /////////////////////
 
-
+static void serialize_boundary(ZoneBoundary b, char *s){
+	sprintf(s,"[(%f,%f) to (%f,%f)]",b.from.x,b.from.y,b.to.x,b.to.y);
+}
 
 
 
@@ -3371,6 +3371,31 @@ static void *join_request_listener_thread_routine(void * args){
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
+
+	ZoneBoundary client_boundary,my_new_boundary;
+	client_boundary.from.x = my_boundary.from.x;
+	client_boundary.from.y = my_boundary.to.y/2;
+	client_boundary.to.x = my_boundary.to.x;
+	client_boundary.to.y = my_boundary.to.y;
+
+	my_new_boundary.from.x=my_boundary.from.x;
+	my_new_boundary.from.y=my_boundary.from.y;
+
+	my_new_boundary.to.x=my_boundary.to.x;
+	my_new_boundary.to.y=my_boundary.to.y/2;
+
+	if(settings.verbose>1){
+		fprintf(stderr,"Client boundary");
+		print_boundaries(client_boundary);
+		fprintf(stderr,"My boundary");
+		print_boundaries(my_boundary);
+		fprintf(stderr,"My new boundary");
+		print_boundaries(my_new_boundary);
+	}
+
+	char client_boundary_str[1024];
+	serialize_boundary(client_boundary,client_boundary_str);
+
 
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
@@ -3439,7 +3464,7 @@ static void *join_request_listener_thread_routine(void * args){
 
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
-		if (send(new_fd, "Hello, world!", 13, 0) == -1)
+		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
 		close(new_fd);
 		exit(0);
@@ -5537,7 +5562,13 @@ int main (int argc, char **argv) {
     /* Drop privileges no longer needed */
     drop_privileges();
 
-    print_boundaries();
+    if(settings.verbose > 1){
+    	fprintf(stderr,"World boundary:");
+    	print_boundaries(world_boundary);
+
+    	fprintf(stderr,"My boundary:");
+		print_boundaries(my_boundary);
+    }
 
     if(is_new_joining_node==0)
     	start_listening_on_join_port();
