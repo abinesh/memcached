@@ -3277,10 +3277,13 @@ static void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+static void serialize_boundary(ZoneBoundary b, char *s){
+	sprintf(s,"[(%f,%f) to (%f,%f)]",b.from.x,b.from.y,b.to.x,b.to.y);
+}
 
-
-
-
+static void deserialize_boundary(char *s,ZoneBoundary *b){
+	sscanf(s,"[(%f,%f) to (%f,%f)]",&(b->from.x),&(b->from.y),&(b->to.x),&(b->to.y));
+}
 
 static void *connect_and_split_thread_routine(void *args)
 {
@@ -3329,8 +3332,11 @@ static void *connect_and_split_thread_routine(void *args)
 		exit(1);
 	}
 	buf[numbytes] = '\0';
-	printf("client: received '%s'\n",buf);
 	close(sockfd);
+	deserialize_boundary(buf,&my_boundary);
+	fprintf(stderr,"client's boundary assigned by server");
+	print_boundaries(my_boundary);
+
 return 0;
 }
 
@@ -3346,9 +3352,6 @@ static void sigchld_handler(int s)
 
 /////////////////////
 
-static void serialize_boundary(ZoneBoundary b, char *s){
-	sprintf(s,"[(%f,%f) to (%f,%f)]",b.from.x,b.from.y,b.to.x,b.to.y);
-}
 
 
 
