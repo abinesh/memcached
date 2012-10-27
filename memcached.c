@@ -3277,6 +3277,21 @@ static void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+
+static void serialize_key_value_str(char *key,int flag1,int flag2,int flag3,char *value,char *key_value_str)
+{
+	sprintf(key_value_str,"%s %d %d %d %s",key,flag1,flag2,flag3,value);
+	fprintf(stderr,"STRING:%s",key_value_str);
+}
+
+
+static void deserialize_key_value_str(char *key,int *flag1,int *flag2,int *flag3,char *value,char *key_value_str)
+{
+	sscanf(key_value_str,"%s %d %d %d %s",key,flag1,flag2,flag3,value);
+}
+
+
+
 static void serialize_boundary(ZoneBoundary b, char *s){
 	sprintf(s,"[(%f,%f) to (%f,%f)]",b.from.x,b.from.y,b.to.x,b.to.y);
 }
@@ -3290,9 +3305,15 @@ static void *connect_and_split_thread_routine(void *args)
 	int sockfd, numbytes;
 	int MAXDATASIZE=1024;
 	char buf[MAXDATASIZE];
+	char buf2[MAXDATASIZE];
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
+	char key[1024];
+	int flag1;
+	int flag2;
+	int flag3;
+	char value[1024];
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -3331,11 +3352,26 @@ static void *connect_and_split_thread_routine(void *args)
 		perror("recv");
 		exit(1);
 	}
+
+
 	buf[numbytes] = '\0';
+
+
+	if ((numbytes = recv(sockfd, buf2, MAXDATASIZE-1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+		}
+
+
+		buf2[numbytes] = '\0';
+
+
 	close(sockfd);
 	deserialize_boundary(buf,&my_boundary);
 	fprintf(stderr,"client's boundary assigned by server");
 	print_boundaries(my_boundary);
+    deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
+	fprintf(stderr,"Client side:%s,%d,%d,%d,%s",key,flag1,flag2,flag3,value);
 
 return 0;
 }
@@ -3398,6 +3434,8 @@ static void *join_request_listener_thread_routine(void * args){
 
 	char client_boundary_str[1024];
 	serialize_boundary(client_boundary,client_boundary_str);
+
+	char key_value_str[1024];
 
 
 
@@ -3469,6 +3507,11 @@ static void *join_request_listener_thread_routine(void * args){
 			close(sockfd); // child doesn't need the listener
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
+
+
+		serialize_key_value_str("key",0,600,5,"abcde",key_value_str);
+
+			send(new_fd, key_value_str, strlen(key_value_str), 0);
 		close(new_fd);
 		exit(0);
 		}
