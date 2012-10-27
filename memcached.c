@@ -118,6 +118,12 @@ enum transmit_result {
 
 static enum transmit_result transmit(conn *c);
 
+//IP address and port number of join node
+static char join_server_port_number[255];
+static char join_server_ip_address[255];
+
+static int is_new_joining_node=0;
+
 /* This reduces the latency without adding lots of extra wiring to be able to
  * notify the listener thread of when to listen again.
  * Also, the clock timer could be broken out into its own thread and we
@@ -3263,12 +3269,6 @@ static void print_boundaries(){
 
 
 
-//////////////////////
-
-static void sigchld_handler(int s)
-{
-    while(waitpid(-1, NULL, WNOHANG) > 0);
-}
 // get sockaddr, IPv4 or IPv6:
 static void *get_in_addr(struct sockaddr *sa)
 {
@@ -3277,6 +3277,73 @@ static void *get_in_addr(struct sockaddr *sa)
     }
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
+
+
+
+
+
+
+static void *connect_and_split_thread_routine(void *args)
+{
+	int sockfd, numbytes;
+	int MAXDATASIZE=1024;
+	char buf[MAXDATASIZE];
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	if ((rv = getaddrinfo(join_server_ip_address, join_server_port_number, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return (void*)1;
+	}
+
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+			p->ai_protocol)) == -1) {
+			perror("client: socket");
+			continue;
+		}
+
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("client: connect");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "client: failed to connect\n");
+		return (void*)2;
+	}
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+	s, sizeof s);
+	printf("client: connecting to %s\n", s);
+	freeaddrinfo(servinfo); // all done with this structure
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+
+	buf[numbytes] = '\0';
+	printf("client: received '%s'\n",buf);
+	close(sockfd);
+return 0;
+}
+
+//////////////////////
+
+static void sigchld_handler(int s)
+{
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+}
+
+
 
 
 /////////////////////
@@ -3383,6 +3450,11 @@ static void *join_request_listener_thread_routine(void * args){
 
     return 0;
 
+}
+static pthread_t connect_and_split_thread;
+static void connect_to_join_server()
+{
+	pthread_create(&connect_and_split_thread, 0,connect_and_split_thread_routine, NULL);
 }
 
 static void start_listening_on_join_port(){
@@ -4946,6 +5018,10 @@ int main (int argc, char **argv) {
     /* set stderr non-buffering (for running under, say, daemontools) */
     setbuf(stderr, NULL);
 
+    char *ptr;
+
+
+
     /* process arguments */
     while (-1 != (c = getopt(argc, argv,
           "a:"  /* access mask for unix socket */
@@ -4980,6 +5056,7 @@ int main (int argc, char **argv) {
           "y:"  /* lower y coordinate */
           "X:"  /* upper x coordinate */
           "Y:"  /* upper y coordinate */
+    	  "j:"  /*IP address and port number of the node to join with */
         ))) {
         switch (c) {
         case 'A':
@@ -5002,6 +5079,15 @@ int main (int argc, char **argv) {
             my_boundary.to.y = atof(optarg);
             world_boundary.to.y=my_boundary.to.y;
             break;
+
+        case 'j':
+        	 is_new_joining_node=1;
+             ptr=strtok(optarg,":");
+             strcpy(join_server_ip_address,ptr);
+             ptr=strtok(NULL,":");
+             strcpy(join_server_port_number,ptr);
+
+             break;
 
         case 'a':
             /* access for unix domain socket, as octal mask (like chmod)*/
@@ -5453,14 +5539,22 @@ int main (int argc, char **argv) {
 
     print_boundaries();
 
-    start_listening_on_join_port();
+    if(is_new_joining_node==0)
+    	start_listening_on_join_port();
+    else
+    {
+    	connect_to_join_server();
+    	//do_split();
+    }
 
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {
         retval = EXIT_FAILURE;
     }
 
-    stop_listening_on_join_port();
+    if(is_new_joining_node==0)
+    	stop_listening_on_join_port();
+
     stop_assoc_maintenance_thread();
 
     /* remove the PID file if we're a daemon */
