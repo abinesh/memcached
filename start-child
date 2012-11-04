@@ -1,0 +1,2 @@
+sudo make install
+./memcached -j localhost:11311 -vvv -x 0 -y 0 -X 5 -Y 5 -p 11212
