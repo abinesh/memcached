@@ -603,3 +603,10 @@ pthread_t join_request_listener_thread;
 #define PORT "11311" // the port users will be connecting to
 #define BACKLOG 10 // how many pending connections queue will hold
 
+typedef char* value_type;
+
+struct arraylist {
+  int size;
+  value_type* data;
+};
+

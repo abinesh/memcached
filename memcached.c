@@ -123,6 +123,7 @@ static char join_server_port_number[255];
 static char join_server_ip_address[255];
 
 static int is_new_joining_node=0;
+static struct arraylist list_of_keys;
 
 /* This reduces the latency without adding lots of extra wiring to be able to
  * notify the listener thread of when to listen again.
@@ -2736,6 +2737,119 @@ static unsigned long str_hash(char *str){
 
   }
 
+
+
+  /*Begin list functions*/
+  static int arraylist_get_size(const struct arraylist list) {
+    return list.size;
+  }
+
+  static value_type arraylist_get(const struct arraylist list, int index) {
+      if(index < arraylist_get_size(list)) {
+        return list.data[index];
+      }
+      else {
+        return NULL;
+      }
+    }
+
+   /* static int arraylist_indexof(const struct arraylist list, value_type value) {
+      int index = 0;
+      for(; index != arraylist_get_size(list); ++index) {
+        if(strcmp(list.data[index], value) == 0) {
+          return index;
+        }
+      }
+
+      return -1;
+    }
+*/
+
+
+  static void arraylist_initial(struct arraylist *list) {
+    list->size = 0;
+    list->data = NULL;
+  }
+
+
+
+ /* static value_type* arraylist_get_data_collection(const struct arraylist list) {
+    return list.data;
+  }*/
+
+  static void arraylist_set_data_collection(struct arraylist *list, value_type* data) {
+    list->data = data;
+  }
+
+  static void arraylist_add(struct arraylist *list, value_type value) {
+     int size = arraylist_get_size(*list);
+    value_type *new_data;
+
+    new_data = (value_type *)realloc(list->data, (size + 1) * sizeof (value_type));
+
+    int index = 0;
+    for(; index != size; ++index) {
+      new_data[index] = arraylist_get(*list, index);
+    }
+
+    if (new_data)
+    {
+        new_data[size] = value;
+        arraylist_set_data_collection(list, new_data);
+        ++list->size;
+    }
+  }
+
+  static void arraylist_delete(struct arraylist *list, value_type value) {
+    int size=arraylist_get_size(*list);
+    int i=0,j;
+    value_type *new_data;
+  	for(i=0;i<size;i++)
+  	{
+  		j=strcmp(arraylist_get(*list,i),value);
+  		if(j==0)
+  	         {
+  			new_data = (value_type *)realloc(list->data, (size - 1) * sizeof (value_type));
+  			  int index=0,k=0;
+  			  for(; index < size; ++index)
+  			  {
+  			            if(index==i)
+  				    {
+  				    	continue;
+   			            }
+  				    else
+  					{
+
+  				    	new_data[k] = arraylist_get(*list, index);
+  				    	k++;
+  					}
+  			  }
+  	if (new_data)
+          {
+  	       arraylist_set_data_collection(list, new_data);
+                 --list->size;
+
+    	}
+
+  			break;
+  		 }
+  	}
+
+  }
+
+    static void arraylist_delete_all(struct arraylist *list)
+  {
+  	value_type *new_data;
+  	new_data = (value_type *)realloc(list->data, (0) * sizeof (value_type));
+      arraylist_set_data_collection(list, new_data);
+      list->size=0;
+  }
+
+
+  /*Ending list functions*/
+
+
+
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
     char *key;
@@ -2925,6 +3039,10 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    arraylist_delete(&list_of_keys, key);
+    arraylist_add(&list_of_keys, key);
+
+
     if (! (safe_strtoul(tokens[2].value, (uint32_t *)&flags)
            && safe_strtol(tokens[3].value, &exptime_int)
            && safe_strtol(tokens[4].value, (int32_t *)&vlen))) {
@@ -3009,6 +3127,9 @@ static void process_touch_command(conn *c, token_t *tokens, const size_t ntokens
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    arraylist_delete(&list_of_keys, key);
+    arraylist_add(&list_of_keys, key);
+
     if (!safe_strtol(tokens[2].value, &exptime_int)) {
         out_string(c, "CLIENT_ERROR invalid exptime argument");
         return;
@@ -3051,6 +3172,9 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
 
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
+
+    arraylist_delete(&list_of_keys, key);
+    arraylist_add(&list_of_keys, key);
 
     if (!safe_strtoull(tokens[2].value, &delta)) {
         out_string(c, "CLIENT_ERROR invalid numeric delta argument");
@@ -3198,6 +3322,8 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    arraylist_delete(&list_of_keys, key);
+
     if(nkey > KEY_MAX_LENGTH) {
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
@@ -3265,6 +3391,8 @@ static void print_boundaries(ZoneBoundary b){
         fprintf(stderr,"[(%f,%f) to (%f,%f)]\n",b.from.x,b.from.y,b.to.x,b.to.y);
     }
 }
+
+
 
 
 
@@ -3617,6 +3745,11 @@ static void process_command(conn *c, char *command) {
 
     } else if (ntokens >= 2 && ntokens <= 4 && (strcmp(tokens[COMMAND_TOKEN].value, "flush_all") == 0)) {
         time_t exptime = 0;
+
+
+
+        arraylist_delete_all(&list_of_keys);
+
 
         set_noreply_maybe(c, tokens, ntokens);
 
@@ -5522,6 +5655,9 @@ int main (int argc, char **argv) {
         perror("failed to ignore SIGPIPE; sigaction");
         exit(EX_OSERR);
     }
+
+    arraylist_initial(&list_of_keys);
+
     /* start up worker threads if MT mode */
     if(is_new_joining_node == 0)
         thread_init(settings.num_threads, main_base, NULL);
