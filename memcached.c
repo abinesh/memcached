@@ -3039,8 +3039,10 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    pthread_mutex_lock(&list_of_keys_lock);
     arraylist_delete(&list_of_keys, key);
     arraylist_add(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
 
 
     if (! (safe_strtoul(tokens[2].value, (uint32_t *)&flags)
@@ -3127,8 +3129,10 @@ static void process_touch_command(conn *c, token_t *tokens, const size_t ntokens
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    pthread_mutex_lock(&list_of_keys_lock);
     arraylist_delete(&list_of_keys, key);
     arraylist_add(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
 
     if (!safe_strtol(tokens[2].value, &exptime_int)) {
         out_string(c, "CLIENT_ERROR invalid exptime argument");
@@ -3173,8 +3177,10 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    pthread_mutex_lock(&list_of_keys_lock);
     arraylist_delete(&list_of_keys, key);
     arraylist_add(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
 
     if (!safe_strtoull(tokens[2].value, &delta)) {
         out_string(c, "CLIENT_ERROR invalid numeric delta argument");
@@ -3322,7 +3328,9 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    pthread_mutex_lock(&list_of_keys_lock);
     arraylist_delete(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
 
     if(nkey > KEY_MAX_LENGTH) {
         out_string(c, "CLIENT_ERROR bad command line format");
@@ -3748,7 +3756,9 @@ static void process_command(conn *c, char *command) {
 
 
 
+        pthread_mutex_lock(&list_of_keys_lock);
         arraylist_delete_all(&list_of_keys);
+        pthread_mutex_unlock(&list_of_keys_lock);
 
 
         set_noreply_maybe(c, tokens, ntokens);
@@ -5656,7 +5666,11 @@ int main (int argc, char **argv) {
         exit(EX_OSERR);
     }
 
+    pthread_mutex_init(&list_of_keys_lock, NULL);
+
+    pthread_mutex_lock(&list_of_keys_lock);
     arraylist_initial(&list_of_keys);
+    pthread_mutex_unlock(&list_of_keys_lock);
 
     /* start up worker threads if MT mode */
     if(is_new_joining_node == 0)

@@ -610,3 +610,5 @@ struct arraylist {
   value_type* data;
 };
 
+
+static pthread_mutex_t list_of_keys_lock ;
