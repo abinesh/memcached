@@ -3300,6 +3300,13 @@ static void deserialize_boundary(char *s,ZoneBoundary *b){
 	sscanf(s,"[(%f,%f) to (%f,%f)]",&(b->from.x),&(b->from.y),&(b->to.x),&(b->to.y));
 }
 
+static void store_key_value(char *key, int flags, int time, int length, char* value){
+    item *it = item_alloc(key, strlen(key), flags, realtime(time), length);
+    char *ptr = ITEM_data(it);
+    sprintf(ptr,"%s\r\n",value);
+    item_link(it);
+}
+
 static void *connect_and_split_thread_routine(void *args)
 {
 	int sockfd, numbytes;
@@ -3373,7 +3380,9 @@ static void *connect_and_split_thread_routine(void *args)
     deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
 	fprintf(stderr,"Client side:%s,%d,%d,%d,%s",key,flag1,flag2,flag3,value);
 
-return 0;
+	store_key_value(key,flag1,flag2,flag3,value);
+
+    return 0;
 }
 
 //////////////////////
@@ -3522,11 +3531,6 @@ static void *join_request_listener_thread_routine(void * args){
     return 0;
 
 }
-static pthread_t connect_and_split_thread;
-static void connect_to_join_server()
-{
-	pthread_create(&connect_and_split_thread, 0,connect_and_split_thread_routine, NULL);
-}
 
 static void start_listening_on_join_port(){
 
@@ -3540,10 +3544,6 @@ static void stop_listening_on_join_port()
 	if(settings.verbose>1)
 		fprintf(stderr,"in stop_listening_on_join_port ");
 }
-
-
-
-
 
 static void process_command(conn *c, char *command) {
 
@@ -5523,7 +5523,10 @@ int main (int argc, char **argv) {
         exit(EX_OSERR);
     }
     /* start up worker threads if MT mode */
-    thread_init(settings.num_threads, main_base);
+    if(is_new_joining_node == 0)
+        thread_init(settings.num_threads, main_base, NULL);
+    else
+        thread_init(settings.num_threads, main_base, connect_and_split_thread_routine);
 
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);
@@ -5618,11 +5621,6 @@ int main (int argc, char **argv) {
 
     if(is_new_joining_node==0)
     	start_listening_on_join_port();
-    else
-    {
-    	connect_to_join_server();
-    	//do_split();
-    }
 
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {

@@ -763,13 +763,32 @@ void slab_stats_aggregate(struct thread_stats *stats, struct slab_stats *out) {
     }
 }
 
+static void *(*static_joining_thread_routine)(void *) = NULL;
+
+static void *wrapper_routine_for_child(void *arg){
+    uint8_t lock_type = ITEM_LOCK_GRANULAR;
+    pthread_setspecific(item_lock_type_key, &lock_type);
+
+    (*static_joining_thread_routine)(NULL);
+    return 0;
+}
+
+static pthread_t connect_and_split_thread;
+
+static void connect_to_join_server(void *(*joining_thread_routine)(void *))
+{
+    static_joining_thread_routine = joining_thread_routine;
+	pthread_create(&connect_and_split_thread, 0,wrapper_routine_for_child,NULL);
+	pthread_join(connect_and_split_thread,NULL);
+}
+
 /*
  * Initializes the thread subsystem, creating various worker threads.
  *
  * nthreads  Number of worker event handler threads to spawn
  * main_base Event base for main thread
  */
-void thread_init(int nthreads, struct event_base *main_base) {
+void thread_init(int nthreads, struct event_base *main_base, void *(*joining_thread_routine)(void *)) {
     int         i;
     int         power;
 
@@ -840,5 +859,9 @@ void thread_init(int nthreads, struct event_base *main_base) {
     pthread_mutex_lock(&init_lock);
     wait_for_thread_registration(nthreads);
     pthread_mutex_unlock(&init_lock);
+
+    if(joining_thread_routine != NULL){
+       connect_to_join_server(joining_thread_routine);
+    }
 }
 
