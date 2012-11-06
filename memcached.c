@@ -3301,7 +3301,7 @@ static void deserialize_boundary(char *s,ZoneBoundary *b){
 }
 
 static void store_key_value(char *key, int flags, int time, int length, char* value){
-    item *it = item_alloc(key, strlen(key), flags, realtime(time), length);
+    item *it = item_alloc(key, strlen(key), flags, realtime(time), length+2);
     char *ptr = ITEM_data(it);
     sprintf(ptr,"%s\r\n",value);
     item_link(it);
