@@ -3638,19 +3638,6 @@ static void *join_request_listener_thread_routine(void * args){
 
 }
 
-static void start_listening_on_join_port(){
-
-	pthread_create(&join_request_listener_thread, 0,join_request_listener_thread_routine, NULL);
-
-}
-static void stop_listening_on_join_port()
-{
-
-	pthread_join(join_request_listener_thread, NULL);
-	if(settings.verbose>1)
-		fprintf(stderr,"in stop_listening_on_join_port ");
-}
-
 static void process_command(conn *c, char *command) {
 
     token_t tokens[MAX_TOKENS];
@@ -5644,9 +5631,9 @@ int main (int argc, char **argv) {
 
     /* start up worker threads if MT mode */
     if(is_new_joining_node == 0)
-        thread_init(settings.num_threads, main_base, NULL);
+        thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL);
     else
-        thread_init(settings.num_threads, main_base, connect_and_split_thread_routine);
+        thread_init(settings.num_threads, main_base,join_request_listener_thread_routine,connect_and_split_thread_routine);
 
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);
@@ -5739,16 +5726,10 @@ int main (int argc, char **argv) {
 		print_boundaries(my_boundary);
     }
 
-    if(is_new_joining_node==0)
-    	start_listening_on_join_port();
-
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {
         retval = EXIT_FAILURE;
     }
-
-    if(is_new_joining_node==0)
-    	stop_listening_on_join_port();
 
     stop_assoc_maintenance_thread();
 

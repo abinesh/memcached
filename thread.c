@@ -782,13 +782,19 @@ static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 	pthread_join(connect_and_split_thread,NULL);
 }
 
+static void start_listening_on_join_port(void *(*join_request_listener_thread_routine)(void *)){
+   static_joining_thread_routine = join_request_listener_thread_routine;
+	pthread_create(&join_request_listener_thread, 0,wrapper_routine_for_child, NULL);
+}
+
+
 /*
  * Initializes the thread subsystem, creating various worker threads.
  *
  * nthreads  Number of worker event handler threads to spawn
  * main_base Event base for main thread
  */
-void thread_init(int nthreads, struct event_base *main_base, void *(*joining_thread_routine)(void *)) {
+void thread_init(int nthreads, struct event_base *main_base, void *(*join_request_listener_thread_routine)(void *), void *(*joining_thread_routine)(void *)) {
     int         i;
     int         power;
 
@@ -859,6 +865,8 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*joining_thr
     pthread_mutex_lock(&init_lock);
     wait_for_thread_registration(nthreads);
     pthread_mutex_unlock(&init_lock);
+
+    start_listening_on_join_port(join_request_listener_thread_routine);
 
     if(joining_thread_routine != NULL){
        connect_to_join_server(joining_thread_routine);
