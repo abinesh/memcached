@@ -3504,6 +3504,17 @@ static void sigchld_handler(int s)
 
 
 
+static void print_all_boundaries() {
+    if(settings.verbose > 1){
+        fprintf(stderr,"Current boundaries:\n");
+        fprintf(stderr,"World boundary:");
+        print_boundaries(world_boundary);
+
+        fprintf(stderr,"My boundary:");
+        print_boundaries(my_boundary);
+    }
+}
+
 
 static void *join_request_listener_thread_routine(void * args){
 	if(settings.verbose>1)
@@ -3526,16 +3537,23 @@ static void *join_request_listener_thread_routine(void * args){
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
 	ZoneBoundary client_boundary,my_new_boundary;
-	client_boundary.from.x = my_boundary.from.x;
-	client_boundary.from.y = my_boundary.to.y/2;
-	client_boundary.to.x = my_boundary.to.x;
-	client_boundary.to.y = my_boundary.to.y;
+	float x1 ,y1,x2,y2;
 
-	my_new_boundary.from.x=my_boundary.from.x;
-	my_new_boundary.from.y=my_boundary.from.y;
+	x1= my_boundary.from.x;
+	x2= my_boundary.to.x;
+	y1= my_boundary.from.y;
+	y2= my_boundary.to.y;
 
-	my_new_boundary.to.x=my_boundary.to.x;
-	my_new_boundary.to.y=my_boundary.to.y/2;
+	client_boundary.from.x = x1 + (x2-x1)/2;
+	client_boundary.from.y = y1;
+	client_boundary.to.x = x2;
+	client_boundary.to.y = y2;
+
+	my_new_boundary.from.x=x1;
+	my_new_boundary.from.y=y1;
+
+	my_new_boundary.to.x= x1+(x2-x1)/2;
+	my_new_boundary.to.y= y2;
 
 	if(settings.verbose>1){
 		fprintf(stderr,"Client boundary");
@@ -3630,6 +3648,9 @@ static void *join_request_listener_thread_routine(void * args){
 
         for (i=0;i<list_of_keys_size;i++){
 		    char *key = list_of_keys.array[i];
+		    Point resolved_point = key_point(key);
+            if(is_within_boundary(resolved_point,my_boundary)!=1)
+                continue;
 		    fprintf(stderr, "key = %s\n", key);
 		    fprintf(stderr, "key == NULL? = %d\n", key == NULL);
             item *it = item_get(key,strlen(key));
@@ -3641,8 +3662,9 @@ static void *join_request_listener_thread_routine(void * args){
         pthread_mutex_unlock(&list_of_keys_lock);
 
 		close(new_fd); // parent doesn't need this
+		my_boundary = my_new_boundary;
+		print_all_boundaries();
 	}
-
     return 0;
 }
 
@@ -5726,14 +5748,7 @@ int main (int argc, char **argv) {
     /* Drop privileges no longer needed */
     drop_privileges();
 
-    if(settings.verbose > 1){
-    	fprintf(stderr,"World boundary:");
-    	print_boundaries(world_boundary);
-
-    	fprintf(stderr,"My boundary:");
-		print_boundaries(my_boundary);
-    }
-
+    print_all_boundaries();
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {
         retval = EXIT_FAILURE;
