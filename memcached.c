@@ -3410,7 +3410,7 @@ static void store_key_value(char *key, int flags, int time, int length, char* va
 
 static void *connect_and_split_thread_routine(void *args)
 {
-	int sockfd, numbytes;
+	int sockfd, numbytes,i,total_keys_to_be_received;
 	int MAXDATASIZE=1024;
 	char buf[MAXDATASIZE];
 	char buf2[MAXDATASIZE];
@@ -3466,7 +3466,15 @@ static void *connect_and_split_thread_routine(void *args)
     fprintf(stderr,"client's boundary assigned by server\n");
     print_boundaries(my_boundary);
 
-    while(1){
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+    buf[numbytes] = '\0';
+    total_keys_to_be_received = atoi(buf);
+    fprintf(stderr,"Total keys to be received = %d\n",total_keys_to_be_received);
+
+    for(i=0;i<total_keys_to_be_received;i++){
         if ((numbytes = recv(sockfd, buf2, MAXDATASIZE-1, 0)) == -1) {
                 perror("recv");
                 exit(1);
@@ -3474,7 +3482,6 @@ static void *connect_and_split_thread_routine(void *args)
         buf2[numbytes] = '\0';
         fprintf(stderr,"received %s\n",buf2);
 
-        if(strcmp("STOP",buf2) == 0) break;
         deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
         fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
 
@@ -3509,7 +3516,7 @@ static void *join_request_listener_thread_routine(void * args){
 	socklen_t sin_size;
 	struct sigaction sa;
 	int yes=1;
-	char s[INET6_ADDRSTRLEN];
+	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
 
 
@@ -3616,6 +3623,11 @@ static void *join_request_listener_thread_routine(void * args){
         pthread_mutex_lock(&list_of_keys_lock);
         list_of_keys_size = list_of_keys.size;
         fprintf(stderr," list size is %d\n",list_of_keys_size);
+
+        sprintf(buf,"%d",list_of_keys_size);
+        if (send(new_fd, buf, strlen(buf), 0) == -1)
+            perror("send");
+
         for (i=0;i<list_of_keys_size;i++){
 		    char *key = list_of_keys.array[i];
 		    fprintf(stderr, "key = %s\n", key);
@@ -3628,14 +3640,10 @@ static void *join_request_listener_thread_routine(void * args){
         }
         pthread_mutex_unlock(&list_of_keys_lock);
 
-        send(new_fd,"STOP",4,0);
-        fprintf(stderr,"STOP sent\n");
-
 		close(new_fd); // parent doesn't need this
 	}
 
     return 0;
-
 }
 
 static void process_command(conn *c, char *command) {
