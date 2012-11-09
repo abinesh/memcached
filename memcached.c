@@ -3622,7 +3622,9 @@ static void *join_request_listener_thread_routine(void * args){
 	printf("server: waiting for connections...\n");
 
 	while(1) { // main accept() loop
-	    int list_of_keys_size = 0,i=0;
+	    int i=0;
+        my_list keys_to_send;
+
 		sin_size = sizeof their_addr;
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
 
@@ -3639,25 +3641,33 @@ static void *join_request_listener_thread_routine(void * args){
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
         pthread_mutex_lock(&list_of_keys_lock);
-        list_of_keys_size = list_of_keys.size;
-        fprintf(stderr," list size is %d\n",list_of_keys_size);
+        mylist_init(&keys_to_send);
+        for(i = 0 ;i< list_of_keys.size; i++){
+            char *key = list_of_keys.array[i];
+            Point resolved_point = key_point(key);
+            if(is_within_boundary(resolved_point,client_boundary) ==1 )
+                mylist_add(&keys_to_send,key);
+        }
 
-        sprintf(buf,"%d",list_of_keys_size);
+        fprintf(stderr,"number of keys to sendis %d\nThe list of keys to be sent is:\n",keys_to_send.size);
+        mylist_print(&keys_to_send);
+
+        sprintf(buf,"%d",keys_to_send.size);
         if (send(new_fd, buf, strlen(buf), 0) == -1)
             perror("send");
 
-        for (i=0;i<list_of_keys_size;i++){
-		    char *key = list_of_keys.array[i];
+        for (i=0;i<keys_to_send.size;i++){
+		    char *key = keys_to_send.array[i];
 		    Point resolved_point = key_point(key);
-            if(is_within_boundary(resolved_point,my_boundary)!=1)
-                continue;
-		    fprintf(stderr, "key = %s\n", key);
-		    fprintf(stderr, "key == NULL? = %d\n", key == NULL);
-            item *it = item_get(key,strlen(key));
+            if(is_within_boundary(resolved_point,client_boundary) ==1){
+                fprintf(stderr, "key = %s\n", key);
+                fprintf(stderr, "key == NULL? = %d\n", key == NULL);
+                item *it = item_get(key,strlen(key));
 
-		    serialize_key_value_str(key,it->it_flags,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
-		    fprintf(stderr,"sending key %s\n",key);
-            send(new_fd, key_value_str, strlen(key_value_str), 0);
+                serialize_key_value_str(key,it->it_flags,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+                fprintf(stderr,"sending key %s\n",key);
+                send(new_fd, key_value_str, strlen(key_value_str), 0);
+            }
         }
         pthread_mutex_unlock(&list_of_keys_lock);
 
