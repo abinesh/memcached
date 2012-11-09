@@ -123,7 +123,7 @@ static char join_server_port_number[255];
 static char join_server_ip_address[255];
 
 static int is_new_joining_node=0;
-static struct arraylist list_of_keys;
+static my_list list_of_keys;
 
 /* This reduces the latency without adding lots of extra wiring to be able to
  * notify the listener thread of when to listen again.
@@ -2740,111 +2740,75 @@ static unsigned long str_hash(char *str){
 
 
   /*Begin list functions*/
-  static int arraylist_get_size(const struct arraylist list) {
-    return list.size;
-  }
+static void mylist_print(my_list *list){
+    int i=0;
+    fprintf(stderr,"(%d,[",list->size);
 
-  static value_type arraylist_get(const struct arraylist list, int index) {
-      if(index < arraylist_get_size(list)) {
-        return list.data[index];
-      }
-      else {
-        return NULL;
-      }
+    for(i=0;i<list->size;i++){
+        fprintf(stderr,"%s,",list->array[i]);
     }
+    fprintf(stderr,"])\n");
+}
 
-   /* static int arraylist_indexof(const struct arraylist list, value_type value) {
-      int index = 0;
-      for(; index != arraylist_get_size(list); ++index) {
-        if(strcmp(list.data[index], value) == 0) {
-          return index;
-        }
-      }
-
-      return -1;
-    }
-*/
-
-
-  static void arraylist_initial(struct arraylist *list) {
+static void mylist_init(my_list *list){
     list->size = 0;
-    list->data = NULL;
-  }
+}
 
-
-
- /* static value_type* arraylist_get_data_collection(const struct arraylist list) {
-    return list.data;
-  }*/
-
-  static void arraylist_set_data_collection(struct arraylist *list, value_type* data) {
-    list->data = data;
-  }
-
-  static void arraylist_add(struct arraylist *list, value_type value) {
-     int size = arraylist_get_size(*list);
-    value_type *new_data;
-
-    new_data = (value_type *)realloc(list->data, (size + 1) * sizeof (value_type));
-
-    int index = 0;
-    for(; index != size; ++index) {
-      new_data[index] = arraylist_get(*list, index);
+static void mylist_add(my_list *list, char* v){
+    int new_size = list->size + 1;
+    char **new_array = (char**)malloc(sizeof(char*)*new_size);
+    int i=0;
+    for(i=0;i<new_size;i++){
+        if(i == new_size - 1){
+            new_array[i]= (char*)malloc(sizeof(char*)*strlen(v));
+            sprintf(new_array[i],"%s",v);
+        }else{
+            new_array[i]= (char*)malloc(sizeof(char*)*strlen(list->array[i]));
+            sprintf(new_array[i],"%s",list->array[i]);
+        }
     }
+    list->size++;
+    list->array = new_array;
+    mylist_print(list);
+}
 
-    if (new_data)
-    {
-        new_data[size] = value;
-        arraylist_set_data_collection(list, new_data);
-        ++list->size;
+static void mylist_delete_all(my_list *list){
+    list->size = 0;
+    list->array = NULL;
+    mylist_print(list);
+}
+
+static int mylist_contains(my_list *list, char *v){
+    int i=0;
+    for(i=0;i<list->size;i++){
+        if(strcmp(list->array[i],v) == 0) {
+            return 1;
+        }
     }
-  }
+    return 0;
+}
 
-  static void arraylist_delete(struct arraylist *list, value_type value) {
-    int size=arraylist_get_size(*list);
-    int i=0,j;
-    value_type *new_data;
-  	for(i=0;i<size;i++)
-  	{
-  		j=strcmp(arraylist_get(*list,i),value);
-  		if(j==0)
-  	         {
-  			new_data = (value_type *)realloc(list->data, (size - 1) * sizeof (value_type));
-  			  int index=0,k=0;
-  			  for(; index < size; ++index)
-  			  {
-  			            if(index==i)
-  				    {
-  				    	continue;
-   			            }
-  				    else
-  					{
+static void mylist_delete(my_list *list, char* v){
+    if(mylist_contains(list,v) == 1){
+        int new_size = list->size - 1;
+        char **new_array = (char**)malloc(sizeof(char*)*new_size);
+        int i=0;
+        int detected = 0;
+        for(i=0;i<list->size;i++){
+            if(strcmp(list->array[i],v) == 0) {
+                detected = 1;
+                continue;
+            }
+            int index = i - detected;
+            new_array[index]= (char*)malloc(sizeof(char*)*strlen(list->array[i]));
+            sprintf(new_array[index],"%s",list->array[i]);
+        }
+        list->size--;
+        list->array = new_array;
+    }
+    mylist_print(list);
 
-  				    	new_data[k] = arraylist_get(*list, index);
-  				    	k++;
-  					}
-  			  }
-  	if (new_data)
-          {
-  	       arraylist_set_data_collection(list, new_data);
-                 --list->size;
-
-    	}
-
-  			break;
-  		 }
-  	}
-
-  }
-
-    static void arraylist_delete_all(struct arraylist *list)
-  {
-  	value_type *new_data;
-  	new_data = (value_type *)realloc(list->data, (0) * sizeof (value_type));
-      arraylist_set_data_collection(list, new_data);
-      list->size=0;
-  }
-
+}
 
   /*Ending list functions*/
 
@@ -3039,9 +3003,10 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    fprintf(stderr,"in update:%s",key);
     pthread_mutex_lock(&list_of_keys_lock);
-    arraylist_delete(&list_of_keys, key);
-    arraylist_add(&list_of_keys, key);
+    mylist_delete(&list_of_keys, key);
+    mylist_add(&list_of_keys, key);
     pthread_mutex_unlock(&list_of_keys_lock);
 
 
@@ -3130,8 +3095,8 @@ static void process_touch_command(conn *c, token_t *tokens, const size_t ntokens
     nkey = tokens[KEY_TOKEN].length;
 
     pthread_mutex_lock(&list_of_keys_lock);
-    arraylist_delete(&list_of_keys, key);
-    arraylist_add(&list_of_keys, key);
+    mylist_delete(&list_of_keys, key);
+    mylist_add(&list_of_keys, key);
     pthread_mutex_unlock(&list_of_keys_lock);
 
     if (!safe_strtol(tokens[2].value, &exptime_int)) {
@@ -3178,8 +3143,8 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
     nkey = tokens[KEY_TOKEN].length;
 
     pthread_mutex_lock(&list_of_keys_lock);
-    arraylist_delete(&list_of_keys, key);
-    arraylist_add(&list_of_keys, key);
+    mylist_delete(&list_of_keys, key);
+    mylist_add(&list_of_keys, key);
     pthread_mutex_unlock(&list_of_keys_lock);
 
     if (!safe_strtoull(tokens[2].value, &delta)) {
@@ -3329,7 +3294,7 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     nkey = tokens[KEY_TOKEN].length;
 
     pthread_mutex_lock(&list_of_keys_lock);
-    arraylist_delete(&list_of_keys, key);
+    mylist_delete(&list_of_keys, key);
     pthread_mutex_unlock(&list_of_keys_lock);
 
     if(nkey > KEY_MAX_LENGTH) {
@@ -3495,34 +3460,31 @@ static void *connect_and_split_thread_routine(void *args)
 		perror("recv");
 		exit(1);
 	}
-
-
 	buf[numbytes] = '\0';
 
+    deserialize_boundary(buf,&my_boundary);
+    fprintf(stderr,"client's boundary assigned by server\n");
+    print_boundaries(my_boundary);
 
-	if ((numbytes = recv(sockfd, buf2, MAXDATASIZE-1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
+    while(1){
+        if ((numbytes = recv(sockfd, buf2, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+           }
+        buf2[numbytes] = '\0';
+        fprintf(stderr,"received %s\n",buf2);
 
+        if(strcmp("STOP",buf2) == 0) break;
+        deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
+        fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
 
-		buf2[numbytes] = '\0';
-
-
-	close(sockfd);
-	deserialize_boundary(buf,&my_boundary);
-	fprintf(stderr,"client's boundary assigned by server");
-	print_boundaries(my_boundary);
-    deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
-	fprintf(stderr,"Client side:%s,%d,%d,%d,%s",key,flag1,flag2,flag3,value);
-
-	store_key_value(key,flag1,flag2,flag3,value);
-
+        store_key_value(key,flag1,flag2,flag3,value);
+    }
+    close(sockfd);
     return 0;
 }
 
 //////////////////////
-
 static void sigchld_handler(int s)
 {
     while(waitpid(-1, NULL, WNOHANG) > 0);
@@ -3581,7 +3543,7 @@ static void *join_request_listener_thread_routine(void * args){
 	serialize_boundary(client_boundary,client_boundary_str);
 
 	char key_value_str[1024];
-
+    serialize_key_value_str("abc",0,500,3,"abc",key_value_str);
 
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
@@ -3635,6 +3597,7 @@ static void *join_request_listener_thread_routine(void * args){
 	printf("server: waiting for connections...\n");
 
 	while(1) { // main accept() loop
+	    int list_of_keys_size = 0,i=0;
 		sin_size = sizeof their_addr;
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
 
@@ -3648,18 +3611,25 @@ static void *join_request_listener_thread_routine(void * args){
 		s, sizeof s);
 		printf("server: got connection from %s\n", s);
 
-		if (!fork()) { // this is the child process
-			close(sockfd); // child doesn't need the listener
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
+        pthread_mutex_lock(&list_of_keys_lock);
+        list_of_keys_size = list_of_keys.size;
+        fprintf(stderr," list size is %d\n",list_of_keys_size);
+        for (i=0;i<list_of_keys_size;i++){
+		    char *key = list_of_keys.array[i];
+		    fprintf(stderr, "key = %s\n", key);
+		    fprintf(stderr, "key == NULL? = %d\n", key == NULL);
+            item *it = item_get(key,strlen(key));
 
+		    serialize_key_value_str(key,it->it_flags,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+		    fprintf(stderr,"sending key %s\n",key);
+            send(new_fd, key_value_str, strlen(key_value_str), 0);
+        }
+        pthread_mutex_unlock(&list_of_keys_lock);
 
-		serialize_key_value_str("key",0,600,5,"abcde",key_value_str);
-
-			send(new_fd, key_value_str, strlen(key_value_str), 0);
-		close(new_fd);
-		exit(0);
-		}
+        send(new_fd,"STOP",4,0);
+        fprintf(stderr,"STOP sent\n");
 
 		close(new_fd); // parent doesn't need this
 	}
@@ -3757,7 +3727,7 @@ static void process_command(conn *c, char *command) {
 
 
         pthread_mutex_lock(&list_of_keys_lock);
-        arraylist_delete_all(&list_of_keys);
+        mylist_delete_all(&list_of_keys);
         pthread_mutex_unlock(&list_of_keys_lock);
 
 
@@ -5669,7 +5639,7 @@ int main (int argc, char **argv) {
     pthread_mutex_init(&list_of_keys_lock, NULL);
 
     pthread_mutex_lock(&list_of_keys_lock);
-    arraylist_initial(&list_of_keys);
+    mylist_init(&list_of_keys);
     pthread_mutex_unlock(&list_of_keys_lock);
 
     /* start up worker threads if MT mode */
@@ -5795,4 +5765,3 @@ int main (int argc, char **argv) {
 
     return retval;
 }
-
