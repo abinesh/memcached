@@ -3660,12 +3660,9 @@ static void *join_request_listener_thread_routine(void * args){
 		    char *key = keys_to_send.array[i];
 		    Point resolved_point = key_point(key);
             if(is_within_boundary(resolved_point,client_boundary) ==1){
-                fprintf(stderr, "key = %s\n", key);
-                fprintf(stderr, "key == NULL? = %d\n", key == NULL);
                 item *it = item_get(key,strlen(key));
-
                 serialize_key_value_str(key,it->it_flags,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
-                fprintf(stderr,"sending key %s\n",key);
+                fprintf(stderr,"sending key_value_str %s\n",key_value_str);
                 send(new_fd, key_value_str, strlen(key_value_str), 0);
             }
         }
