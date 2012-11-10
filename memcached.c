@@ -124,6 +124,10 @@ static char join_server_ip_address[255];
 
 static int is_new_joining_node=0;
 static my_list list_of_keys;
+#define NORMAL_NODE 0
+#define SPLITTING_PARENT 1
+#define SPLITTING_CHILD 2
+static int mode;
 
 /* This reduces the latency without adding lots of extra wiring to be able to
  * notify the listener thread of when to listen again.
@@ -3414,7 +3418,7 @@ static void *connect_and_split_thread_routine(void *args)
 	int MAXDATASIZE=1024;
 	char buf[MAXDATASIZE];
 	char buf2[MAXDATASIZE];
-	struct addrinfo hints, *servinfo,*p;
+	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	char key[1024];
@@ -3456,7 +3460,6 @@ static void *connect_and_split_thread_routine(void *args)
 	s, sizeof s);
 	printf("client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
-
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 		perror("recv");
 		exit(1);
@@ -3475,8 +3478,6 @@ static void *connect_and_split_thread_routine(void *args)
     total_keys_to_be_received = atoi(buf);
     fprintf(stderr,"Total keys to be received = %d\n",total_keys_to_be_received);
 
-
-
     for(i=0;i<total_keys_to_be_received;i++){
 		memset(buf2,0,1024);
 		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
@@ -3491,6 +3492,9 @@ static void *connect_and_split_thread_routine(void *args)
         store_key_value(key,flag1,flag2,flag3,value);
     }
     close(sockfd);
+    mode = NORMAL_NODE;
+    fprintf(stderr,"Mode changed: SPLITTING_CHILD -> NORMAL_NODE\n");
+
     return 0;
 }
 
@@ -3524,7 +3528,6 @@ static void *join_request_listener_thread_routine(void * args){
 	int yes=1;
 	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
-	//int flag=1;
 
 
 	memset(&hints, 0, sizeof hints);
@@ -3564,6 +3567,8 @@ static void *join_request_listener_thread_routine(void * args){
 	serialize_boundary(client_boundary,client_boundary_str);
 
 	char key_value_str[1024];
+    serialize_key_value_str("abc",0,500,3,"abc",key_value_str);
+
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -3666,6 +3671,8 @@ static void *join_request_listener_thread_routine(void * args){
 		close(new_fd); // parent doesn't need this
 		my_boundary = my_new_boundary;
 		print_all_boundaries();
+		mode = NORMAL_NODE;
+        fprintf(stderr,"Mode changed: SPLITTING_PARENT -> NORMAL_NODE\n");
 	}
     return 0;
 }
@@ -5663,10 +5670,18 @@ int main (int argc, char **argv) {
 
     /* start up worker threads if MT mode */
     if(is_new_joining_node == 0)
-        thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL);
+        {
+            mode = NORMAL_NODE;
+            fprintf(stderr,"Mode set as : NORMAL_NODE\n");
+            thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL);
+        }
     else
-    	thread_init(settings.num_threads, main_base,NULL,connect_and_split_thread_routine);
-        //thread_init(settings.num_threads, main_base,join_request_listener_thread_routine,connect_and_split_thread_routine);
+        {
+            mode = SPLITTING_CHILD;
+            fprintf(stderr,"Mode set as : SPLITTING_CHILD\n");
+            thread_init(settings.num_threads, main_base,NULL,connect_and_split_thread_routine);
+            //thread_init(settings.num_threads, main_base,join_request_listener_thread_routine,connect_and_split_thread_routine);
+        }
 
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);
