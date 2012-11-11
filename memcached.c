@@ -3300,14 +3300,14 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
-    pthread_mutex_lock(&list_of_keys_lock);
-    mylist_delete(&list_of_keys, key);
-    pthread_mutex_unlock(&list_of_keys_lock);
-
     if(nkey > KEY_MAX_LENGTH) {
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
     }
+
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_delete(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
 
     if (settings.detail_enabled) {
         stats_prefix_record_delete(key, nkey);
