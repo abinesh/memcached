@@ -3017,7 +3017,6 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     mylist_add(&list_of_keys, key);
     pthread_mutex_unlock(&list_of_keys_lock);
 
-
     if (! (safe_strtoul(tokens[2].value, (uint32_t *)&flags)
            && safe_strtol(tokens[3].value, &exptime_int)
            && safe_strtol(tokens[4].value, (int32_t *)&vlen))) {
@@ -3387,9 +3386,9 @@ static void *get_in_addr(struct sockaddr *sa)
 }
 
 
-static void serialize_key_value_str(char *key,int flag1,int flag2,int flag3,char *value,char *key_value_str)
+static void serialize_key_value_str(char *key,char *flag1,int flag2,int flag3,char *value,char *key_value_str)
 {
-	sprintf(key_value_str,"%s %d %d %d %s",key,flag1,flag2,flag3,value);
+	sprintf(key_value_str,"%s %s %d %d %s",key,flag1,flag2,flag3,value);
 	fprintf(stderr,"STRING:%s",key_value_str);
 }
 
@@ -3410,7 +3409,7 @@ static void deserialize_boundary(char *s,ZoneBoundary *b){
 }
 
 static void store_key_value(char *key, int flags, int time, int length, char* value){
-    item *it = item_alloc(key, strlen(key), flags, realtime(time), length+2);
+    item *it = item_alloc(key, strlen(key),flags, realtime(time), length);
     char *ptr = ITEM_data(it);
     sprintf(ptr,"%s\r\n",value);
     item_link(it);
@@ -3492,7 +3491,6 @@ static void *connect_and_split_thread_routine(void *args)
 
         deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
         fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
-
         store_key_value(key,flag1,flag2,flag3,value);
     }
     close(sockfd);
@@ -3532,7 +3530,7 @@ static void *join_request_listener_thread_routine(void * args){
 	int yes=1;
 	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
-
+	char *ptr;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -3571,8 +3569,6 @@ static void *join_request_listener_thread_routine(void * args){
 	serialize_boundary(client_boundary,client_boundary_str);
 
 	char key_value_str[1024];
-    serialize_key_value_str("abc",0,500,3,"abc",key_value_str);
-
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -3663,14 +3659,12 @@ static void *join_request_listener_thread_routine(void * args){
 
         for (i=0;i<keys_to_send.size;i++){
 		    char *key = keys_to_send.array[i];
-		    Point resolved_point = key_point(key);
-            if(is_within_boundary(resolved_point,client_boundary) ==1){
-                item *it = item_get(key,strlen(key));
-                serialize_key_value_str(key,it->it_flags,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
-                fprintf(stderr,"sending key_value_str %s\n",key_value_str);
-                send(new_fd, key_value_str, strlen(key_value_str), 0);
-                usleep(1000);
-            }
+			item *it = item_get(key,strlen(key));
+			ptr=strtok(ITEM_suffix(it)," ");
+			serialize_key_value_str(key,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+			fprintf(stderr,"sending key_value_str %s\n",key_value_str);
+			send(new_fd, key_value_str, strlen(key_value_str), 0);
+			usleep(1000);
         }
         pthread_mutex_unlock(&list_of_keys_lock);
 
