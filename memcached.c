@@ -3641,6 +3641,8 @@ static void *join_request_listener_thread_routine(void * args){
 		s, sizeof s);
 		printf("server: got connection from %s\n", s);
 
+		mode = SPLITTING_PARENT;
+        fprintf(stderr,"Mode changed: NORMAL_NODE -> SPLITTING_PARENT\n");
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
         pthread_mutex_lock(&list_of_keys_lock);
