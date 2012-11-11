@@ -3438,6 +3438,7 @@ static void delete_key_locally(char *key){
 }
 static void delete_key_on_child(int child_fd,char *key){
     send(child_fd, key, strlen(key), 0);
+    usleep(1000);
 }
 
 static void *connect_and_split_thread_routine(void *args)
@@ -3488,21 +3489,22 @@ static void *connect_and_split_thread_routine(void *args)
 	s, sizeof s);
 	printf("client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
+
+    memset(buf,'\0',1024);
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 		perror("recv");
 		exit(1);
 	}
-	buf[numbytes] = '\0';
 
     deserialize_boundary(buf,&my_boundary);
     fprintf(stderr,"client's boundary assigned by server\n");
     print_boundaries(my_boundary);
 
+    memset(buf,'\0',1024);
     if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
         perror("recv");
         exit(1);
     }
-    buf[numbytes] = '\0';
     total_keys_to_be_received = atoi(buf);
     fprintf(stderr,"Total keys to be received = %d\n",total_keys_to_be_received);
 
@@ -3519,16 +3521,16 @@ static void *connect_and_split_thread_routine(void *args)
         store_key_value(key,flag1,flag2,flag3,value);
     }
 
+    memset(buf,'\0',1024);
     if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
             perror("recv");
             exit(1);
     }
-    buf[numbytes] = '\0';
     total_keys_to_be_received = atoi(buf);
     fprintf(stderr,"Total keys to be deleted = %d\n",total_keys_to_be_received);
 
     for(i=0;i<total_keys_to_be_received;i++){
-    		memset(buf2,0,1024);
+    		memset(buf2,'\0',1024);
     		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
     						perror("recv");
     						exit(1);
@@ -3693,6 +3695,7 @@ static void *join_request_listener_thread_routine(void * args){
             if(is_within_boundary(resolved_point,client_boundary) ==1 )
                 mylist_add(&keys_to_send,key);
         }
+        pthread_mutex_unlock(&list_of_keys_lock);
 
         fprintf(stderr,"number of keys to send for storing is %d\nThe list of keys to be sent for storing is:\n",keys_to_send.size);
         mylist_print(&keys_to_send);
@@ -3710,7 +3713,6 @@ static void *join_request_listener_thread_routine(void * args){
 			send(new_fd, key_value_str, strlen(key_value_str), 0);
 			usleep(1000);
         }
-        pthread_mutex_unlock(&list_of_keys_lock);
 
         fprintf(stderr,"number of keys to send for deleting is %d\nThe list of keys to be sent for deleting is:\n",trash_both.size);
         mylist_print(&trash_both);
