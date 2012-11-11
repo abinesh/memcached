@@ -3433,8 +3433,10 @@ static void store_key_value(char *key, int flags, int time, int length, char* va
 static void delete_key_locally(char *key){
     int nkey = strlen(key);
     item* it = item_get(key, nkey);
-    item_unlink(it);
-    item_remove(it);
+    if(it){
+        item_unlink(it);
+        item_remove(it);
+    }
 }
 static void delete_key_on_child(int child_fd,char *key){
     send(child_fd, key, strlen(key), 0);
