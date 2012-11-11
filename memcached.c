@@ -3052,6 +3052,12 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         stats_prefix_record_set(key, nkey);
     }
 
+    if(mode == SPLITTING_PARENT)
+    {
+        fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
+        mylist_add(&trash_both,key);
+    }
+
     it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
 
     if (it == 0) {
