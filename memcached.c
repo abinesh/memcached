@@ -2844,12 +2844,16 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 
             if(is_within_boundary(resolved_point,my_boundary)!=1)
             {
-            	fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            	fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
             	it=NULL;
-
             }
-            else
-            it = item_get(key, nkey);
+            else if(mode == SPLITTING_PARENT){
+                fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
+                it=NULL;
+            }
+            else{
+                it = item_get(key, nkey);
+            }
             if (settings.detail_enabled) {
                 stats_prefix_record_get(key, nkey, NULL != it);
             }
