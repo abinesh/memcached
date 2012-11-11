@@ -3414,7 +3414,7 @@ static void *connect_and_split_thread_routine(void *args)
 	int MAXDATASIZE=1024;
 	char buf[MAXDATASIZE];
 	char buf2[MAXDATASIZE];
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints, *servinfo,*p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	char key[1024];
@@ -3456,6 +3456,7 @@ static void *connect_and_split_thread_routine(void *args)
 	s, sizeof s);
 	printf("client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
+
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 		perror("recv");
 		exit(1);
@@ -3474,12 +3475,14 @@ static void *connect_and_split_thread_routine(void *args)
     total_keys_to_be_received = atoi(buf);
     fprintf(stderr,"Total keys to be received = %d\n",total_keys_to_be_received);
 
+
+
     for(i=0;i<total_keys_to_be_received;i++){
-        if ((numbytes = recv(sockfd, buf2, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-           }
-        buf2[numbytes] = '\0';
+		memset(buf2,0,1024);
+		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
+						perror("recv");
+						exit(1);
+		}
         fprintf(stderr,"received %s\n",buf2);
 
         deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
@@ -3491,18 +3494,10 @@ static void *connect_and_split_thread_routine(void *args)
     return 0;
 }
 
-//////////////////////
 static void sigchld_handler(int s)
 {
     while(waitpid(-1, NULL, WNOHANG) > 0);
 }
-
-
-
-
-/////////////////////
-
-
 
 static void print_all_boundaries() {
     if(settings.verbose > 1){
@@ -3529,6 +3524,7 @@ static void *join_request_listener_thread_routine(void * args){
 	int yes=1;
 	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
+	//int flag=1;
 
 
 	memset(&hints, 0, sizeof hints);
@@ -3568,8 +3564,6 @@ static void *join_request_listener_thread_routine(void * args){
 	serialize_boundary(client_boundary,client_boundary_str);
 
 	char key_value_str[1024];
-    serialize_key_value_str("abc",0,500,3,"abc",key_value_str);
-
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -3664,6 +3658,7 @@ static void *join_request_listener_thread_routine(void * args){
                 serialize_key_value_str(key,it->it_flags,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
                 fprintf(stderr,"sending key_value_str %s\n",key_value_str);
                 send(new_fd, key_value_str, strlen(key_value_str), 0);
+                usleep(1000);
             }
         }
         pthread_mutex_unlock(&list_of_keys_lock);
@@ -5670,7 +5665,8 @@ int main (int argc, char **argv) {
     if(is_new_joining_node == 0)
         thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL);
     else
-        thread_init(settings.num_threads, main_base,join_request_listener_thread_routine,connect_and_split_thread_routine);
+    	thread_init(settings.num_threads, main_base,NULL,connect_and_split_thread_routine);
+        //thread_init(settings.num_threads, main_base,join_request_listener_thread_routine,connect_and_split_thread_routine);
 
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);

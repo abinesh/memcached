@@ -768,13 +768,13 @@ static void *(*static_joining_thread_routine)(void *) = NULL;
 static void *wrapper_routine_for_child(void *arg){
     uint8_t lock_type = ITEM_LOCK_GRANULAR;
     pthread_setspecific(item_lock_type_key, &lock_type);
-
     (*static_joining_thread_routine)(NULL);
+    pthread_exit(NULL);
     return 0;
 }
 
 static pthread_t connect_and_split_thread;
-
+static pthread_t join_request_listener_thread;
 static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
@@ -783,7 +783,7 @@ static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 }
 
 static void start_listening_on_join_port(void *(*join_request_listener_thread_routine)(void *)){
-   static_joining_thread_routine = join_request_listener_thread_routine;
+    static_joining_thread_routine = join_request_listener_thread_routine;
 	pthread_create(&join_request_listener_thread, 0,wrapper_routine_for_child, NULL);
 }
 
@@ -866,10 +866,12 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
     wait_for_thread_registration(nthreads);
     pthread_mutex_unlock(&init_lock);
 
-    start_listening_on_join_port(join_request_listener_thread_routine);
 
     if(joining_thread_routine != NULL){
        connect_to_join_server(joining_thread_routine);
     }
+    else
+        start_listening_on_join_port(join_request_listener_thread_routine);
+
 }
 
