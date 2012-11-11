@@ -124,6 +124,7 @@ static char join_server_ip_address[255];
 
 static int is_new_joining_node=0;
 static my_list list_of_keys;
+static my_list trash_both;
 #define NORMAL_NODE 0
 #define SPLITTING_PARENT 1
 #define SPLITTING_CHILD 2
@@ -3304,32 +3305,40 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
     }
+    if(mode == NORMAL_NODE){
+        pthread_mutex_lock(&list_of_keys_lock);
+        mylist_delete(&list_of_keys, key);
+        pthread_mutex_unlock(&list_of_keys_lock);
 
-    pthread_mutex_lock(&list_of_keys_lock);
-    mylist_delete(&list_of_keys, key);
-    pthread_mutex_unlock(&list_of_keys_lock);
+        if (settings.detail_enabled) {
+            stats_prefix_record_delete(key, nkey);
+        }
 
-    if (settings.detail_enabled) {
-        stats_prefix_record_delete(key, nkey);
+        it = item_get(key, nkey);
+        if (it) {
+            MEMCACHED_COMMAND_DELETE(c->sfd, ITEM_key(it), it->nkey);
+
+            pthread_mutex_lock(&c->thread->stats.mutex);
+            c->thread->stats.slab_stats[it->slabs_clsid].delete_hits++;
+            pthread_mutex_unlock(&c->thread->stats.mutex);
+
+            item_unlink(it);
+            item_remove(it);      /* release our reference */
+            out_string(c, "DELETED");
+        } else {
+            pthread_mutex_lock(&c->thread->stats.mutex);
+            c->thread->stats.delete_misses++;
+            pthread_mutex_unlock(&c->thread->stats.mutex);
+
+            out_string(c, "NOT_FOUND");
     }
+    }else if(mode == SPLITTING_PARENT){
+        pthread_mutex_lock(&list_of_keys_lock);
+        mylist_delete(&list_of_keys, key);
+        mylist_add(&trash_both, key);
+        pthread_mutex_unlock(&list_of_keys_lock);
 
-    it = item_get(key, nkey);
-    if (it) {
-        MEMCACHED_COMMAND_DELETE(c->sfd, ITEM_key(it), it->nkey);
-
-        pthread_mutex_lock(&c->thread->stats.mutex);
-        c->thread->stats.slab_stats[it->slabs_clsid].delete_hits++;
-        pthread_mutex_unlock(&c->thread->stats.mutex);
-
-        item_unlink(it);
-        item_remove(it);      /* release our reference */
-        out_string(c, "DELETED");
-    } else {
-        pthread_mutex_lock(&c->thread->stats.mutex);
-        c->thread->stats.delete_misses++;
-        pthread_mutex_unlock(&c->thread->stats.mutex);
-
-        out_string(c, "NOT_FOUND");
+        out_string(c, "IGNORING DELETE; KEY STORED IN TRASH LIST");
     }
 }
 
@@ -3415,6 +3424,16 @@ static void store_key_value(char *key, int flags, int time, int length, char* va
     item_link(it);
 }
 
+static void delete_key_locally(char *key){
+    int nkey = strlen(key);
+    item* it = item_get(key, nkey);
+    item_unlink(it);
+    item_remove(it);
+}
+static void delete_key_on_child(int child_fd,char *key){
+    send(child_fd, key, strlen(key), 0);
+}
+
 static void *connect_and_split_thread_routine(void *args)
 {
 	int sockfd, numbytes,i,total_keys_to_be_received;
@@ -3493,6 +3512,25 @@ static void *connect_and_split_thread_routine(void *args)
         fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
         store_key_value(key,flag1,flag2,flag3,value);
     }
+
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+            perror("recv");
+            exit(1);
+    }
+    buf[numbytes] = '\0';
+    total_keys_to_be_received = atoi(buf);
+    fprintf(stderr,"Total keys to be deleted = %d\n",total_keys_to_be_received);
+
+    for(i=0;i<total_keys_to_be_received;i++){
+    		memset(buf2,0,1024);
+    		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
+    						perror("recv");
+    						exit(1);
+    		}
+            fprintf(stderr,"Received %s\n",buf2);
+            delete_key_locally(buf2);
+            fprintf(stderr,"deleting key %s\n",buf2);
+    }
     close(sockfd);
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD -> NORMAL_NODE\n");
@@ -3515,7 +3553,6 @@ static void print_all_boundaries() {
         print_boundaries(my_boundary);
     }
 }
-
 
 static void *join_request_listener_thread_routine(void * args){
 	if(settings.verbose>1)
@@ -3638,6 +3675,7 @@ static void *join_request_listener_thread_routine(void * args){
 		printf("server: got connection from %s\n", s);
 
 		mode = SPLITTING_PARENT;
+        mylist_init(&trash_both);
         fprintf(stderr,"Mode changed: NORMAL_NODE -> SPLITTING_PARENT\n");
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
@@ -3650,7 +3688,7 @@ static void *join_request_listener_thread_routine(void * args){
                 mylist_add(&keys_to_send,key);
         }
 
-        fprintf(stderr,"number of keys to sendis %d\nThe list of keys to be sent is:\n",keys_to_send.size);
+        fprintf(stderr,"number of keys to send for storing is %d\nThe list of keys to be sent for storing is:\n",keys_to_send.size);
         mylist_print(&keys_to_send);
 
         sprintf(buf,"%d",keys_to_send.size);
@@ -3667,6 +3705,18 @@ static void *join_request_listener_thread_routine(void * args){
 			usleep(1000);
         }
         pthread_mutex_unlock(&list_of_keys_lock);
+
+        fprintf(stderr,"number of keys to send for deleting is %d\nThe list of keys to be sent for deleting is:\n",trash_both.size);
+        mylist_print(&trash_both);
+
+        sprintf(buf,"%d",trash_both.size);
+        send(new_fd, buf, strlen(buf), 0);
+        usleep(1000);
+        for(i=0;i<trash_both.size;i++){
+            char *key = trash_both.array[i];
+            delete_key_locally(key);
+            delete_key_on_child(new_fd,key);
+        }
 
 		close(new_fd); // parent doesn't need this
 		my_boundary = my_new_boundary;
@@ -5666,6 +5716,7 @@ int main (int argc, char **argv) {
 
     pthread_mutex_lock(&list_of_keys_lock);
     mylist_init(&list_of_keys);
+    mylist_init(&trash_both);
     pthread_mutex_unlock(&list_of_keys_lock);
 
     /* start up worker threads if MT mode */
