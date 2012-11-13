@@ -3651,6 +3651,7 @@ static void *node_removal_listener_thread_routine(void *args){
             sprintf(buf,"abc");
     		send(new_fd, "abc", 3, 0);
 
+            close(new_fd); // parent doesn't need this
         }
 }
 
@@ -3827,6 +3828,60 @@ static void *join_request_listener_thread_routine(void * args){
     return 0;
 }
 
+static void process_die_command(conn *c){
+    int sockfd, numbytes;
+ 	int MAXDATASIZE=1024;
+ 	char buf[MAXDATASIZE];
+ 	struct addrinfo hints, *servinfo, *p;
+ 	int rv;
+ 	char s[INET6_ADDRSTRLEN];
+
+    out_string(c, "Die command received, initiating to move all keys to a neighbour\n");
+ 	memset(&hints, 0, sizeof hints);
+ 	hints.ai_family = AF_UNSPEC;
+ 	hints.ai_socktype = SOCK_STREAM;
+ 	if ((rv = getaddrinfo(join_server_ip_address, neighbour.node_removal, &hints, &servinfo)) != 0) {
+ 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+ 		return;
+ 	}
+
+ 	for(p = servinfo; p != NULL; p = p->ai_next) {
+ 			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+ 			p->ai_protocol)) == -1) {
+ 			perror("client: socket");
+ 			continue;
+ 		}
+
+ 		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+ 			close(sockfd);
+ 			perror("client: connect");
+ 			continue;
+ 		}
+
+ 		break;
+ 	}
+
+ 	if (p == NULL) {
+ 		fprintf(stderr, "client: failed to connect\n");
+ 		return;
+ 	}
+
+ 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+ 	s, sizeof s);
+ 	printf("client: connecting to %s\n", s);
+ 	freeaddrinfo(servinfo); // all done with this structure
+
+     memset(buf,'\0',1024);
+ 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+ 		perror("recv");
+ 		exit(1);
+ 	}
+
+ 	fprintf(stderr,"In process_die_command, received ACK: %s\n",buf);
+    out_string(c, "Die command complete\n");
+    close(sockfd);
+}
+
 static void process_command(conn *c, char *command) {
 
     token_t tokens[MAX_TOKENS];
@@ -3854,7 +3909,10 @@ static void process_command(conn *c, char *command) {
     }
 
     ntokens = tokenize_command(command, tokens, MAX_TOKENS);
-    if (ntokens >= 3 &&
+    if (ntokens == 2 && (strcmp(tokens[COMMAND_TOKEN].value, "die") == 0)) {
+         process_die_command(c);
+    }
+    else if (ntokens >= 3 &&
         ((strcmp(tokens[COMMAND_TOKEN].value, "get") == 0) ||
          (strcmp(tokens[COMMAND_TOKEN].value, "bget") == 0))) {
 
