@@ -877,6 +877,8 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
     }
     else
         start_listening_on_join_port(join_request_listener_thread_routine);
+
+    usleep(1000);
     start_listening_on_node_removal_port(node_removal_listener_thread_routine);
 }
 

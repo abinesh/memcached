@@ -3428,6 +3428,11 @@ static void store_key_value(char *key, int flags, int time, int length, char* va
     char *ptr = ITEM_data(it);
     sprintf(ptr,"%s\r\n",value);
     item_link(it);
+
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_delete(&list_of_keys, key);
+    mylist_add(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
 }
 
 static void delete_key_locally(char *key){
@@ -3469,13 +3474,13 @@ static void *connect_and_split_thread_routine(void *args)
 	for(p = servinfo; p != NULL; p = p->ai_next) {
 			if ((sockfd = socket(p->ai_family, p->ai_socktype,
 			p->ai_protocol)) == -1) {
-			perror("client: socket");
+			perror("connect_and_split_thread_routine : client: socket");
 			continue;
 		}
 
 		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);
-			perror("client: connect");
+			perror("connect_and_split_thread_routine : client: connect");
 			continue;
 		}
 
@@ -3483,13 +3488,13 @@ static void *connect_and_split_thread_routine(void *args)
 	}
 
 	if (p == NULL) {
-		fprintf(stderr, "client: failed to connect\n");
+		fprintf(stderr, "connect_and_split_thread_routine : client: failed to connect\n");
 		return (void*)2;
 	}
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
 	s, sizeof s);
-	printf("client: connecting to %s\n", s);
+	printf("connect_and_split_thread_routine : client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
 
     memset(buf,'\0',1024);
@@ -3592,7 +3597,7 @@ static void *node_removal_listener_thread_routine(void *args){
 
     			if ((sockfd = socket(p->ai_family, p->ai_socktype,
     			p->ai_protocol)) == -1) {
-    			perror("server: socket");
+    			perror("node_removal_listener_thread_routine : server: socket");
     			continue;
     		}
 
@@ -3604,7 +3609,7 @@ static void *node_removal_listener_thread_routine(void *args){
 
     		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
     			close(sockfd);
-    			perror("server: bind");
+    			perror("node_removal_listener_thread_routine : server: bind");
     			continue;
     		}
 
@@ -3612,7 +3617,7 @@ static void *node_removal_listener_thread_routine(void *args){
     	}
 
     	if (p == NULL) {
-    		fprintf(stderr, "server: failed to bind\n");
+    		fprintf(stderr, "node_removal_listener_thread_routine : server: failed to bind\n");
     		return (void*)2;
     	}
 
@@ -3631,7 +3636,7 @@ static void *node_removal_listener_thread_routine(void *args){
     	perror("sigaction");
     	exit(1);
     	}
-    	printf("server: waiting for connections...\n");
+    	printf("node_removal_listener_thread_routine : server: waiting for connections...\n");
 
     	while(1) { // main accept() loop
 
@@ -3717,7 +3722,7 @@ static void *join_request_listener_thread_routine(void * args){
 
 			if ((sockfd = socket(p->ai_family, p->ai_socktype,
 			p->ai_protocol)) == -1) {
-			perror("server: socket");
+			perror("join_request_listener_thread_routine : server: socket");
 			continue;
 		}
 
@@ -3729,7 +3734,7 @@ static void *join_request_listener_thread_routine(void * args){
 
 		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);
-			perror("server: bind");
+			perror("join_request_listener_thread_routine : server: bind");
 			continue;
 		}
 
@@ -3737,7 +3742,7 @@ static void *join_request_listener_thread_routine(void * args){
 	}
 
 	if (p == NULL) {
-		fprintf(stderr, "server: failed to bind\n");
+		fprintf(stderr, "join_request_listener_thread_routine : server: failed to bind\n");
 		return (void*)2;
 	}
 
@@ -3756,7 +3761,7 @@ static void *join_request_listener_thread_routine(void * args){
 	perror("sigaction");
 	exit(1);
 	}
-	printf("server: waiting for connections...\n");
+	printf("join_request_listener_thread_routine : server: waiting for connections...\n");
 
 	while(1) { // main accept() loop
 	    int i=0;
@@ -3773,7 +3778,7 @@ static void *join_request_listener_thread_routine(void * args){
 		inet_ntop(their_addr.ss_family,
 		get_in_addr((struct sockaddr *)&their_addr),
 		s, sizeof s);
-		printf("server: got connection from %s\n", s);
+		printf("join_request_listener_thread_routine : server: got connection from %s\n", s);
 
 		mode = SPLITTING_PARENT;
         mylist_init(&trash_both);
@@ -3848,13 +3853,13 @@ static void process_die_command(conn *c){
  	for(p = servinfo; p != NULL; p = p->ai_next) {
  			if ((sockfd = socket(p->ai_family, p->ai_socktype,
  			p->ai_protocol)) == -1) {
- 			perror("client: socket");
+ 			perror("process_die_command: client: socket");
  			continue;
  		}
 
  		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
  			close(sockfd);
- 			perror("client: connect");
+ 			perror("process_die_command: client: connect");
  			continue;
  		}
 
@@ -3862,13 +3867,13 @@ static void process_die_command(conn *c){
  	}
 
  	if (p == NULL) {
- 		fprintf(stderr, "client: failed to connect\n");
+ 		fprintf(stderr, "process_die_command: client: failed to connect\n");
  		return;
  	}
 
  	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
  	s, sizeof s);
- 	printf("client: connecting to %s\n", s);
+ 	printf("process_die_command : client: connecting to %s\n", s);
  	freeaddrinfo(servinfo); // all done with this structure
 
      memset(buf,'\0',1024);
