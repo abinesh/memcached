@@ -524,7 +524,11 @@ static inline int mutex_lock(pthread_mutex_t *mutex)
  * also #define-d to directly call the underlying code in singlethreaded mode.
  */
 
-void thread_init(int nthreads, struct event_base *main_base,void *(*join_request_listener_thread_routine)(void *),void *(*joining_thread_routine)(void *));
+void thread_init(int nthreads, struct event_base *main_base,
+    void *(*join_request_listener_thread_routine)(void *),
+    void *(*joining_thread_routine)(void *),
+    void *(*node_removal_listener_thread_routine)(void *)
+    );
 int  dispatch_event_add(int thread, conn *c);
 void dispatch_conn_new(int sfd, enum conn_states init_state, int event_flags, int read_buffer_size, enum network_transport transport);
 
@@ -610,8 +614,8 @@ typedef struct tagList{
 }my_list;
 
 typedef struct tagPortNumbers{
-    int request_propogation;
-    int node_removal;
+    char request_propogation[10];
+    char node_removal[10];
 
 }PortNumbers;
 PortNumbers me, neighbour;
