@@ -5734,12 +5734,21 @@ int main (int argc, char **argv) {
         {
             mode = NORMAL_NODE;
             fprintf(stderr,"Mode set as : NORMAL_NODE\n");
+            me.request_propogation= 11312;
+            me.node_removal = 11314;
+            neighbour.request_propogation= 11313;
+            neighbour.node_removal = 11315;
+
             thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL);
         }
     else
         {
             mode = SPLITTING_CHILD;
             fprintf(stderr,"Mode set as : SPLITTING_CHILD\n");
+            me.request_propogation= 11313;
+            me.node_removal = 11315;
+            neighbour.request_propogation= 11312;
+            neighbour.node_removal = 11314;
             thread_init(settings.num_threads, main_base,NULL,connect_and_split_thread_routine);
             //thread_init(settings.num_threads, main_base,join_request_listener_thread_routine,connect_and_split_thread_routine);
         }

@@ -609,5 +609,11 @@ typedef struct tagList{
     char **array;
 }my_list;
 
+typedef struct tagPortNumbers{
+    int request_propogation;
+    int node_removal;
+
+}PortNumbers;
+PortNumbers me, neighbour;
 
 pthread_mutex_t list_of_keys_lock ;
