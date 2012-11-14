@@ -3660,6 +3660,45 @@ static void *node_removal_listener_thread_routine(void *args){
         }
 }
 
+static void _migrate_key_values(int another_node_fd, my_list keys_to_send){
+    int i=0;
+    char *ptr,buf[1024],key_value_str[1024];
+
+    fprintf(stderr,"The list of keys to be sent:\n");
+    mylist_print(&keys_to_send);
+
+    sprintf(buf,"%d",keys_to_send.size);
+    if (send(another_node_fd, buf, strlen(buf), 0) == -1)
+        perror("send");
+
+    for (i=0;i<keys_to_send.size;i++){
+        char *key = keys_to_send.array[i];
+        item *it = item_get(key,strlen(key));
+        ptr=strtok(ITEM_suffix(it)," ");
+        serialize_key_value_str(key,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+        fprintf(stderr,"sending key_value_str %s\n",key_value_str);
+        send(another_node_fd, key_value_str, strlen(key_value_str), 0);
+        usleep(1000);
+        delete_key_locally(key);
+    }
+}
+
+static void _trash_keys_in_both_nodes(int child_node_fd,my_list trash_both){
+    int i=0;
+    char buf[1024];
+    fprintf(stderr,"number of keys to send for deleting is %d\nThe list of keys to be sent for deleting is:\n",trash_both.size);
+    mylist_print(&trash_both);
+
+    sprintf(buf,"%d",trash_both.size);
+    send(child_node_fd, buf, strlen(buf), 0);
+    usleep(1000);
+    for(i=0;i<trash_both.size;i++){
+        char *key = trash_both.array[i];
+        delete_key_locally(key);
+        delete_key_on_child(child_node_fd,key);
+    }
+}
+
 static void *join_request_listener_thread_routine(void * args){
 	if(settings.verbose>1)
 	fprintf(stderr,"in join_request_listener_thread_routine ");
@@ -3671,9 +3710,8 @@ static void *join_request_listener_thread_routine(void * args){
 	socklen_t sin_size;
 	struct sigaction sa;
 	int yes=1;
-	char s[INET6_ADDRSTRLEN],buf[1024];
+	char s[INET6_ADDRSTRLEN];
 	int rv;
-	char *ptr;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -3710,8 +3748,6 @@ static void *join_request_listener_thread_routine(void * args){
 
 	char client_boundary_str[1024];
 	serialize_boundary(client_boundary,client_boundary_str);
-
-	char key_value_str[1024];
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -3795,34 +3831,12 @@ static void *join_request_listener_thread_routine(void * args){
         }
         pthread_mutex_unlock(&list_of_keys_lock);
 
-        fprintf(stderr,"number of keys to send for storing is %d\nThe list of keys to be sent for storing is:\n",keys_to_send.size);
-        mylist_print(&keys_to_send);
+        fprintf(stderr,"Migrating keys:\n");
+        _migrate_key_values(new_fd,keys_to_send);
 
-        sprintf(buf,"%d",keys_to_send.size);
-        if (send(new_fd, buf, strlen(buf), 0) == -1)
-            perror("send");
+        fprintf(stderr,"Trashing keys in parent and child:\n");
+        _trash_keys_in_both_nodes(new_fd,trash_both);
 
-        for (i=0;i<keys_to_send.size;i++){
-		    char *key = keys_to_send.array[i];
-			item *it = item_get(key,strlen(key));
-			ptr=strtok(ITEM_suffix(it)," ");
-			serialize_key_value_str(key,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
-			fprintf(stderr,"sending key_value_str %s\n",key_value_str);
-			send(new_fd, key_value_str, strlen(key_value_str), 0);
-			usleep(1000);
-        }
-
-        fprintf(stderr,"number of keys to send for deleting is %d\nThe list of keys to be sent for deleting is:\n",trash_both.size);
-        mylist_print(&trash_both);
-
-        sprintf(buf,"%d",trash_both.size);
-        send(new_fd, buf, strlen(buf), 0);
-        usleep(1000);
-        for(i=0;i<trash_both.size;i++){
-            char *key = trash_both.array[i];
-            delete_key_locally(key);
-            delete_key_on_child(new_fd,key);
-        }
 
 		close(new_fd); // parent doesn't need this
 		my_boundary = my_new_boundary;
