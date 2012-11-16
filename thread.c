@@ -776,6 +776,7 @@ static void *wrapper_routine_for_child(void *arg){
 static pthread_t connect_and_split_thread;
 static pthread_t join_request_listener_thread;
 static pthread_t node_removal_listener_thread;
+static pthread_t node_propagation_listener_thread;
 static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
@@ -792,6 +793,11 @@ static void start_listening_on_node_removal_port(void *(*node_removal_listener_t
     static_joining_thread_routine = node_removal_listener_thread_routine;
 	pthread_create(&node_removal_listener_thread, 0,wrapper_routine_for_child, NULL);
 }
+static void start_listening_on_node_propagation_port(void *(*node_propagation_listener_thread_routine)(void *)){
+    static_joining_thread_routine = node_propagation_listener_thread_routine;
+	pthread_create(&node_propagation_listener_thread, 0,wrapper_routine_for_child, NULL);
+
+}
 
 /*
  * Initializes the thread subsystem, creating various worker threads.
@@ -799,7 +805,7 @@ static void start_listening_on_node_removal_port(void *(*node_removal_listener_t
  * nthreads  Number of worker event handler threads to spawn
  * main_base Event base for main thread
  */
-void thread_init(int nthreads, struct event_base *main_base, void *(*join_request_listener_thread_routine)(void *), void *(*joining_thread_routine)(void *), void *(*node_removal_listener_thread_routine)(void *)) {
+void thread_init(int nthreads, struct event_base *main_base, void *(*join_request_listener_thread_routine)(void *), void *(*joining_thread_routine)(void *), void *(*node_removal_listener_thread_routine)(void *),void *(*node_propagation_thread_routine)(void *)) {
     int         i;
     int         power;
 
@@ -880,5 +886,7 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
 
     usleep(1000);
     start_listening_on_node_removal_port(node_removal_listener_thread_routine);
+    usleep(1000);
+    start_listening_on_node_propagation_port(node_propagation_thread_routine);
 }
 

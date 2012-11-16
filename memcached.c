@@ -129,6 +129,8 @@ static my_list trash_both;
 #define SPLITTING_PARENT 1
 #define SPLITTING_CHILD 2
 static int mode;
+char command_to_transfer[1024];
+char key_to_transfer[1024];
 
 /* This reduces the latency without adding lots of extra wiring to be able to
  * notify the listener thread of when to listen again.
@@ -2816,19 +2818,196 @@ static void mylist_delete(my_list *list, char* v){
 }
 
   /*Ending list functions*/
+// get sockaddr, IPv4 or IPv6:
+static void *get_in_addr(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET) {
+    return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
 
+
+
+static char *request_neighbour(char *key,char *buf,char *type)
+{
+	int sockfd;
+	int MAXDATASIZE=1024;
+	//char buf[MAXDATASIZE];
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+	//int numbytes;
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	if ((rv = getaddrinfo("localhost",neighbour.request_propogation, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return (void*)1;
+	}
+
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+			p->ai_protocol)) == -1) {
+			perror("request_neighbour : client: socket");
+			continue;
+		}
+
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("request_neighbour : client: connect");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "request_neighbour : client: failed to connect\n");
+		return (void*)2;
+	}
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+	s, sizeof s);
+	printf("request_neighbour : client: connecting to %s\n", s);
+	freeaddrinfo(servinfo); // all done with this structure
+
+	memset(buf,'\0',1024);
+	printf("request_neighbour : sending type %s\n", type);
+	   send(sockfd, type, strlen(type), 0);
+	   usleep(1000);
+
+	memset(buf,'\0',1024);
+	printf("request_neighbour : sending key/command %s\n", key);
+    send(sockfd, key, strlen(key), 0);
+
+    usleep(1000);
+    memset(buf,'\0',1024);
+    //numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0);
+    recv(sockfd, buf, MAXDATASIZE-1, 0);
+
+	close(sockfd);
+	return buf;
+
+
+
+
+    /*deserialize_boundary(buf,&my_boundary);
+    fprintf(stderr,"client's boundary assigned by server\n");
+    print_boundaries(my_boundary);
+*/
+
+
+
+   //     deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
+
+
+    //return 0;
+}
+
+/*
+static int set_in_neighbour(char *key)
+{
+	int sockfd;
+	int MAXDATASIZE=1024;
+	char buf[MAXDATASIZE];
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	if ((rv = getaddrinfo("localhost",neighbour.request_propogation, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return 1;
+	}
+
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+			p->ai_protocol)) == -1) {
+			perror("set_in_neighbour : client: socket");
+			continue;
+		}
+
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("set_in_neighbour : client: connect");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "set_in_neighbour : client: failed to connect\n");
+		return 2;
+	}
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+	s, sizeof s);
+	printf("set_in_neighbour : client: connecting to %s\n", s);
+	freeaddrinfo(servinfo); // all done with this structure
+
+	memset(buf,'\0',1024);
+	printf("set_in_neighbour : sending key %s\n", key);
+    send(sockfd, key, strlen(key), 0);
+
+    memset(buf,'\0',1024);
+    recv(sockfd, buf, MAXDATASIZE-1, 0);
+	close(sockfd);
+	return 0;
+
+
+
+
+    deserialize_boundary(buf,&my_boundary);
+    fprintf(stderr,"client's boundary assigned by server\n");
+    print_boundaries(my_boundary);
+
+
+
+
+   //     deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
+
+
+    //return 0;
+}
+*/
+
+static void serialize_key_value_str(char *key,char *flag1,int flag2,int flag3,char *value,char *key_value_str)
+{
+	sprintf(key_value_str,"%s %s %d %d %s",key,flag1,flag2,flag3,value);
+	fprintf(stderr,"STRING:%s",key_value_str);
+}
+
+
+static void deserialize_key_value_str(char *key,int *flag1,int *flag2,int *flag3,char *value,char *key_value_str)
+{
+	sscanf(key_value_str,"%s %d %d %d %s",key,flag1,flag2,flag3,value);
+}
+static void deserialize_key_value_str2(char *key,char *flag1,int *flag2,char *flag3,char *value,char *key_value_str)
+{
+	sscanf(key_value_str,"%s %s %d %s %s",key,flag1,flag2,flag3,value);
+}
 
 
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
     char *key;
+    char key2[1024];
     size_t nkey;
-    int i = 0;
+    int i = 0,time;
     item *it;
     token_t *key_token = &tokens[KEY_TOKEN];
     char *suffix;
     assert(c != NULL);
-
+    char buf[1024],value[1024];
+    char flag[1024],length[1024];
+    char *ptr_to_value;
+    char *ptr_to_length;
+    char *ptr_to_flag;
+    it=NULL;
     do {
         while(key_token->length != 0) {
 
@@ -2846,7 +3025,26 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             if(is_within_boundary(resolved_point,my_boundary)!=1)
             {
             	fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
-            	it=NULL;
+            	request_neighbour(key,buf,"get");
+            	printf("buf is : %s",buf);
+            	if(strcmp(buf,"NOT FOUND"))
+            	{
+            	deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+            	fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+            	ptr_to_value=value;
+            	ptr_to_length=length;
+            	ptr_to_flag=flag;
+            	add_iov(c, "VALUE ", 6);
+            	add_iov(c, key2, strlen(key2));
+            	add_iov(c, " ", 1);
+            	add_iov(c,  flag,strlen(ptr_to_flag));
+            	add_iov(c, " ", 1);
+            	add_iov(c,  length, strlen(ptr_to_length));
+            	add_iov(c, "\n", 1);
+            	add_iov(c, value, strlen(ptr_to_value));
+            	add_iov(c, "\n", 1);
+            	//it=NULL;
+            	}
             }
             else if(mode == SPLITTING_PARENT){
                 fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
@@ -3012,7 +3210,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
-    fprintf(stderr,"in update:%s",key);
+
     pthread_mutex_lock(&list_of_keys_lock);
     mylist_delete(&list_of_keys, key);
     mylist_add(&list_of_keys, key);
@@ -3057,6 +3255,9 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
         mylist_add(&trash_both,key);
     }
+
+    /*sprintf(command_to_transfer,"%s %d %d %d %d ",key,(int)nkey,flags,(int)exptime,vlen);*/
+    sprintf(key_to_transfer,"%s",key);
 
     it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
 
@@ -3288,6 +3489,7 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     char *key;
     size_t nkey;
     item *it;
+    char buf[1024];
 
     assert(c != NULL);
 
@@ -3311,7 +3513,15 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
     }
-    if(mode == NORMAL_NODE){
+    Point resolved_point = key_point(key);
+    if(is_within_boundary(resolved_point,my_boundary)!=1)
+    {
+
+    	fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+    	request_neighbour(key,buf,"delete");
+        out_string(c, "DELETED");
+    }
+    else if(mode == NORMAL_NODE){
         pthread_mutex_lock(&list_of_keys_lock);
         mylist_delete(&list_of_keys, key);
         pthread_mutex_unlock(&list_of_keys_lock);
@@ -3391,27 +3601,7 @@ static void print_boundaries(ZoneBoundary b){
 
 
 
-// get sockaddr, IPv4 or IPv6:
-static void *get_in_addr(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-    return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 
-
-static void serialize_key_value_str(char *key,char *flag1,int flag2,int flag3,char *value,char *key_value_str)
-{
-	sprintf(key_value_str,"%s %s %d %d %s",key,flag1,flag2,flag3,value);
-	fprintf(stderr,"STRING:%s",key_value_str);
-}
-
-
-static void deserialize_key_value_str(char *key,int *flag1,int *flag2,int *flag3,char *value,char *key_value_str)
-{
-	sscanf(key_value_str,"%s %d %d %d %s",key,flag1,flag2,flag3,value);
-}
 
 
 
@@ -3424,15 +3614,25 @@ static void deserialize_boundary(char *s,ZoneBoundary *b){
 }
 
 static void store_key_value(char *key, int flags, int time, int length, char* value){
-    item *it = item_alloc(key, strlen(key),flags, realtime(time), length);
-    char *ptr = ITEM_data(it);
-    sprintf(ptr,"%s\r\n",value);
-    item_link(it);
+	  item *it;
+	  it = item_get(key, strlen(key));
+	  if (it) {
+		  item_unlink(it);
+		  item_remove(it);
+	  }
+	  else
+	  {
 
-    pthread_mutex_lock(&list_of_keys_lock);
-    mylist_delete(&list_of_keys, key);
-    mylist_add(&list_of_keys, key);
-    pthread_mutex_unlock(&list_of_keys_lock);
+		  it = item_alloc(key, strlen(key),flags, realtime(time), length);
+		  char *ptr = ITEM_data(it);
+		  sprintf(ptr,"%s\r\n",value);
+		  item_link(it);
+
+		  pthread_mutex_lock(&list_of_keys_lock);
+		  mylist_delete(&list_of_keys, key);
+		  mylist_add(&list_of_keys, key);
+		  pthread_mutex_unlock(&list_of_keys_lock);
+	  }
 }
 
 static void delete_key_locally(char *key){
@@ -3569,6 +3769,159 @@ static void print_all_boundaries() {
     }
 }
 
+static void getting_key_from_neighbour(char *buf,int sock_fd){
+	 char *ptr;
+	item *it;
+	char key_value_str[1024];
+	it = item_get(buf,strlen(buf));
+	if(it)
+	{
+		ptr=strtok(ITEM_suffix(it)," ");
+		serialize_key_value_str(buf,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+		printf("key value str:%s",key_value_str);
+		send(sock_fd, key_value_str, strlen(key_value_str), 0);
+	}
+	else
+	{
+		send(sock_fd,"NOT FOUND",9, 0);
+	}
+}
+
+
+static void *node_propagation_thread_routine(void *args){
+	if(settings.verbose>1)
+	        fprintf(stderr,"in node_propagation_thread_routine\n");
+	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
+	struct addrinfo hints, *servinfo, *p;
+	struct sockaddr_storage their_addr; // connector's address information
+	socklen_t sin_size;
+	struct sigaction sa;
+	char s[INET6_ADDRSTRLEN];//,buf[1024];
+	int rv;
+	int yes=1;
+	int MAXDATASIZE=1024;
+	char buf[MAXDATASIZE];
+    int numbytes;
+    char key[1024],value[1024],cmd[1024];
+    int flag,time,length;
+
+	memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP
+
+	if ((rv = getaddrinfo(NULL, me.request_propogation, &hints, &servinfo)) != 0) {
+    	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    	return (void*)1;
+    	}
+    	// loop through all the results and bind to the first we can
+    	for(p = servinfo; p != NULL; p = p->ai_next) {
+
+    			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+    			p->ai_protocol)) == -1) {
+    			perror("node_propagation_thread_routine : server: socket");
+    			continue;
+    		}
+
+    		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+    		sizeof(int)) == -1) {
+    			perror("setsockopt");
+    			exit(1);
+    		}
+
+    		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+    			close(sockfd);
+    			perror("node_propagation_thread_routine : server: bind");
+    			continue;
+    		}
+
+    		break;
+    	}
+
+    	if (p == NULL) {
+    		fprintf(stderr, "node_propagation_thread_routine : server: failed to bind\n");
+    		return (void*)2;
+    	}
+
+    	freeaddrinfo(servinfo); // all done with this structure
+
+    	if (listen(sockfd, BACKLOG) == -1) {
+    		perror("listen");
+    		exit(1);
+    	}
+
+    	sa.sa_handler = sigchld_handler; // reap all dead processes
+    	sigemptyset(&sa.sa_mask);
+    	sa.sa_flags = SA_RESTART;
+
+    	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+    	perror("sigaction");
+    	exit(1);
+    	}
+    	printf("node_propagation_thread_routine : server: waiting for connections...\n");
+
+    	while(1) { // main accept() loop
+
+    		sin_size = sizeof their_addr;
+    		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+
+    		if (new_fd == -1) {
+    			perror("accept");
+    			continue;
+    		}
+
+    		inet_ntop(their_addr.ss_family,
+    		get_in_addr((struct sockaddr *)&their_addr),
+    		s, sizeof s);
+    		printf("node_propagation_thread_routine: got connection from %s\n", s);
+
+    		 memset(buf,'\0',1024);
+    		 if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+    		 		perror("recv");
+    		 		exit(1);
+    		 }
+
+    		if(!strcmp(buf,"get"))
+    		{
+				memset(buf,'\0',1024);
+				if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+
+				getting_key_from_neighbour(buf,new_fd);
+    		}
+    		if(!strcmp(buf,"set"))
+    		{
+				memset(buf,'\0',1024);
+				if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+
+				sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
+				store_key_value(key,flag,time,length,value);
+    		}
+
+    		if(!strcmp(buf,"delete"))
+			{
+				memset(buf,'\0',1024);
+				if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+
+				delete_key_locally(buf);
+			}
+
+            close(new_fd); // parent doesn't need this
+        }
+
+
+
+	return 0;
+}
+
 static void *node_removal_listener_thread_routine(void *args){
 	if(settings.verbose>1)
         fprintf(stderr,"in node_removal_listener_thread_routine\n");
@@ -3675,7 +4028,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send){
         char *key = keys_to_send.array[i];
         item *it = item_get(key,strlen(key));
         ptr=strtok(ITEM_suffix(it)," ");
-        serialize_key_value_str(key,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+        serialize_key_value_str(key,ptr,it->exptime,it->nbytes-2,ITEM_data(it),key_value_str);
         fprintf(stderr,"sending key_value_str %s\n",key_value_str);
         send(another_node_fd, key_value_str, strlen(key_value_str), 0);
         usleep(1000);
@@ -3914,6 +4267,7 @@ static void process_command(conn *c, char *command) {
     if (settings.verbose > 1)
         fprintf(stderr, "<%d %s\n", c->sfd, command);
 
+    sprintf(command_to_transfer,"%s",command);
     /*
      * for commands set/add/replace, we build an item and read the data
      * directly into it, then continue in nread_complete().
@@ -4448,6 +4802,10 @@ static void drive_machine(conn *c) {
     int nreqs = settings.reqs_per_event;
     int res;
     const char *str;
+    char to_transfer[1024];
+    char buf[1024];
+   // char *ptr;
+   //item *it;
 
     assert(c != NULL);
 
@@ -4581,8 +4939,11 @@ static void drive_machine(conn *c) {
                 }
             }
 
-            /*  now try reading from the socket */
+
+
+            /*now try reading from the socket*/
             res = read(c->sfd, c->ritem, c->rlbytes);
+
             if (res > 0) {
                 pthread_mutex_lock(&c->thread->stats.mutex);
                 c->thread->stats.bytes_read += res;
@@ -4592,6 +4953,16 @@ static void drive_machine(conn *c) {
                 }
                 c->ritem += res;
                 c->rlbytes -= res;
+                Point resolved_point = key_point(key_to_transfer);
+				 if(is_within_boundary(resolved_point,my_boundary)!=1)
+				 {
+					sprintf(to_transfer,"%s %s",command_to_transfer,c->ritem-= res);
+					request_neighbour(to_transfer,buf,"set");
+					pthread_mutex_lock(&list_of_keys_lock);
+					mylist_delete(&list_of_keys, key_to_transfer);
+					pthread_mutex_unlock(&list_of_keys_lock);
+				}
+
                 break;
             }
             if (res == 0) { /* end of stream */
@@ -4617,7 +4988,7 @@ static void drive_machine(conn *c) {
                         (long)c->rcurr, (long)c->ritem, (long)c->rbuf,
                         (int)c->rlbytes, (int)c->rsize);
             }
-            conn_set_state(c, conn_closing);
+                        conn_set_state(c, conn_closing);
             break;
 
         case conn_swallow:
@@ -5906,7 +6277,7 @@ int main (int argc, char **argv) {
             sprintf(neighbour.request_propogation,"11313");
             sprintf(neighbour.node_removal, "11315");
 
-            thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL,node_removal_listener_thread_routine);
+            thread_init(settings.num_threads, main_base, join_request_listener_thread_routine,NULL,node_removal_listener_thread_routine,node_propagation_thread_routine);
         }
     else
         {
@@ -5916,7 +6287,7 @@ int main (int argc, char **argv) {
             sprintf(me.node_removal ,"11315");
             sprintf(neighbour.request_propogation, "11312");
             sprintf(neighbour.node_removal, "11314");
-            thread_init(settings.num_threads, main_base,NULL,connect_and_split_thread_routine,node_removal_listener_thread_routine);
+            thread_init(settings.num_threads, main_base,NULL,connect_and_split_thread_routine,node_removal_listener_thread_routine,node_propagation_thread_routine);
         }
 
     if (start_assoc_maintenance_thread() == -1) {
