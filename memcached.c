@@ -128,6 +128,8 @@ static my_list trash_both;
 #define NORMAL_NODE 0
 #define SPLITTING_PARENT 1
 #define SPLITTING_CHILD 2
+#define MERGING_PARENT 3
+#define MERGING_CHILD 4
 static int mode;
 char command_to_transfer[1024];
 char key_to_transfer[1024];
@@ -4058,6 +4060,9 @@ static void *node_removal_listener_thread_routine(void *args){
     		s, sizeof s);
     		printf("node_removal_listener_thread_routine: got connection from %s\n", s);
 
+            fprintf(stderr,"Mode changed: NORMAL_NODE -> MERGING_PARENT\n");
+            mode = MERGING_PARENT;
+
     		ZoneBoundary *child_boundary = _recv_boundary_from_child(new_fd);
             ZoneBoundary *my_new_boundary = _merge_boundaries(&my_boundary,child_boundary);
             _receive_keys_and_trash_keys(new_fd);
@@ -4065,6 +4070,8 @@ static void *node_removal_listener_thread_routine(void *args){
             fprintf(stderr,"My new boundary is:\n");
             print_boundaries(my_boundary);
             close(new_fd);
+            mode = NORMAL_NODE;
+            fprintf(stderr,"Mode changed: MERGING_PARENT -> NORMAL_NODE\n");
         }
 }
 
@@ -4305,6 +4312,9 @@ static void process_die_command(conn *c){
  	freeaddrinfo(servinfo); // all done with this structure
 
  	fprintf(stderr,"In process_die_command\n");
+    fprintf(stderr,"Mode changed: NORMAL_NODE -> MERGING_CHILD\n");
+    mode = MERGING_CHILD;
+
 
  	_send_my_boundary_to(sockfd);
 
@@ -4320,6 +4330,7 @@ static void process_die_command(conn *c){
     _migrate_key_values(sockfd,keys_to_send);
     out_string(c, "Die command complete\n");
     close(sockfd);
+    exit(0);
 }
 
 static void process_command(conn *c, char *command) {
