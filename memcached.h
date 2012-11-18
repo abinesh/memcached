@@ -601,7 +601,7 @@ typedef struct tagZoneBoundary {
     Point to;
 } ZoneBoundary;
 
-ZoneBoundary my_boundary,world_boundary;
+ZoneBoundary my_boundary,world_boundary,client_boundary;
 
 //pthread_t join_request_listener_thread;
 

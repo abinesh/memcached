@@ -2841,6 +2841,7 @@ static char *request_neighbour(char *key,char *buf,char *type)
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
+	fprintf(stderr,"------------------%s--------------",neighbour.request_propogation);
 	if ((rv = getaddrinfo("localhost",neighbour.request_propogation, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return (void*)1;
@@ -3046,9 +3047,34 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             	//it=NULL;
             	}
             }
-            else if(mode == SPLITTING_PARENT){
-                fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
-                it=NULL;
+            else if((mode == SPLITTING_PARENT)&& is_within_boundary(resolved_point,client_boundary)==1){
+                /*fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
+                it=NULL;*/
+
+				request_neighbour(key,buf,"get");
+				printf("buf is : %s",buf);
+				if(strcmp(buf,"NOT FOUND"))
+				{
+				deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+				fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+				ptr_to_value=value;
+				ptr_to_length=length;
+				ptr_to_flag=flag;
+				add_iov(c, "VALUE ", 6);
+				add_iov(c, key2, strlen(key2));
+				add_iov(c, " ", 1);
+				add_iov(c,  flag,strlen(ptr_to_flag));
+				add_iov(c, " ", 1);
+				add_iov(c,  length, strlen(ptr_to_length));
+				add_iov(c, "\n", 1);
+				add_iov(c, value, strlen(ptr_to_value));
+				add_iov(c, "\n", 1);
+				}
+
+            }
+            else if(mode == SPLITTING_PARENT && is_within_boundary(resolved_point,my_boundary)==1)
+            {
+            	it = item_get(key, nkey);
             }
             else{
                 it = item_get(key, nkey);
@@ -3625,7 +3651,8 @@ static void store_key_value(char *key, int flags, int time, int length, char* va
 
 		  it = item_alloc(key, strlen(key),flags, realtime(time), length);
 		  char *ptr = ITEM_data(it);
-		  sprintf(ptr,"%s\r\n",value);
+		  //sprintf(ptr,"%s\r\n",value);
+		  sprintf(ptr,"%s",value);
 		  item_link(it);
 
 		  pthread_mutex_lock(&list_of_keys_lock);
@@ -4028,10 +4055,10 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send){
         char *key = keys_to_send.array[i];
         item *it = item_get(key,strlen(key));
         ptr=strtok(ITEM_suffix(it)," ");
-        serialize_key_value_str(key,ptr,it->exptime,it->nbytes-2,ITEM_data(it),key_value_str);
+        serialize_key_value_str(key,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
         fprintf(stderr,"sending key_value_str %s\n",key_value_str);
         send(another_node_fd, key_value_str, strlen(key_value_str), 0);
-        usleep(1000);
+        usleep(1000*1000*5);
         delete_key_locally(key);
     }
 }
@@ -4071,7 +4098,8 @@ static void *join_request_listener_thread_routine(void * args){
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	ZoneBoundary client_boundary,my_new_boundary;
+	//ZoneBoundary client_boundary,my_new_boundary;
+	ZoneBoundary my_new_boundary;
 	float x1 ,y1,x2,y2;
 
 	x1= my_boundary.from.x;

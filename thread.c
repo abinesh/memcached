@@ -781,7 +781,7 @@ static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
 	pthread_create(&connect_and_split_thread, 0,wrapper_routine_for_child,NULL);
-	pthread_join(connect_and_split_thread,NULL);
+	//pthread_join(connect_and_split_thread,NULL);
 }
 
 static void start_listening_on_join_port(void *(*join_request_listener_thread_routine)(void *)){
@@ -882,11 +882,15 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
        connect_to_join_server(joining_thread_routine);
     }
     else
+    {
+    	//start_listening_on_node_propagation_port(node_propagation_thread_routine);
         start_listening_on_join_port(join_request_listener_thread_routine);
 
+    }
+    usleep(1000);
+            start_listening_on_node_propagation_port(node_propagation_thread_routine);
     usleep(1000);
     start_listening_on_node_removal_port(node_removal_listener_thread_routine);
-    usleep(1000);
-    start_listening_on_node_propagation_port(node_propagation_thread_routine);
+
 }
 
