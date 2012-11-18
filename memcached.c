@@ -3670,6 +3670,9 @@ static void delete_key_locally(char *key){
     if(it){
         item_unlink(it);
         item_remove(it);
+        pthread_mutex_lock(&list_of_keys_lock);
+        mylist_delete(&list_of_keys, key);
+        pthread_mutex_unlock(&list_of_keys_lock);
     }
 }
 static void delete_key_on_child(int child_fd,char *key){
