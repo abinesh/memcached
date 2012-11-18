@@ -3025,58 +3025,83 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             if(settings.verbose > 1)
                 fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
 
+
             if(is_within_boundary(resolved_point,my_boundary)!=1)
             {
-            	fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
-            	request_neighbour(key,buf,"get");
-            	printf("buf is : %s",buf);
-            	if(strcmp(buf,"NOT FOUND"))
+            	if(mylist_contains(&trash_both,key)==1)
+				{
+					fprintf(stderr,"key present in trash list, ignoring GETs\n");
+					it=NULL;
+				}
+            	else
             	{
-            	deserialize_key_value_str2(key2,flag,&time,length,value,buf);
-            	fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
-            	ptr_to_value=value;
-            	ptr_to_length=length;
-            	ptr_to_flag=flag;
-            	add_iov(c, "VALUE ", 6);
-            	add_iov(c, key2, strlen(key2));
-            	add_iov(c, " ", 1);
-            	add_iov(c,  flag,strlen(ptr_to_flag));
-            	add_iov(c, " ", 1);
-            	add_iov(c,  length, strlen(ptr_to_length));
-            	add_iov(c, "\n", 1);
-            	add_iov(c, value, strlen(ptr_to_value));
-            	add_iov(c, "\n", 1);
-            	//it=NULL;
+					fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+					request_neighbour(key,buf,"get");
+					printf("buf is : %s",buf);
+					if(strcmp(buf,"NOT FOUND"))
+					{
+						deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+						fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+						ptr_to_value=value;
+						ptr_to_length=length;
+						ptr_to_flag=flag;
+						add_iov(c, "VALUE ", 6);
+						add_iov(c, key2, strlen(key2));
+						add_iov(c, " ", 1);
+						add_iov(c,  flag,strlen(ptr_to_flag));
+						add_iov(c, " ", 1);
+						add_iov(c,  length, strlen(ptr_to_length));
+						add_iov(c, "\n", 1);
+						add_iov(c, value, strlen(ptr_to_value));
+						add_iov(c, "\n", 1);
+						//it=NULL;
+					}
             	}
             }
             else if((mode == SPLITTING_PARENT || mode == MERGING_CHILD) && is_within_boundary(resolved_point,client_boundary)==1){
                 /*fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
                 it=NULL;*/
 
-				request_neighbour(key,buf,"get");
-				printf("buf is : %s",buf);
-				if(strcmp(buf,"NOT FOUND"))
-				{
-				deserialize_key_value_str2(key2,flag,&time,length,value,buf);
-				fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
-				ptr_to_value=value;
-				ptr_to_length=length;
-				ptr_to_flag=flag;
-				add_iov(c, "VALUE ", 6);
-				add_iov(c, key2, strlen(key2));
-				add_iov(c, " ", 1);
-				add_iov(c,  flag,strlen(ptr_to_flag));
-				add_iov(c, " ", 1);
-				add_iov(c,  length, strlen(ptr_to_length));
-				add_iov(c, "\n", 1);
-				add_iov(c, value, strlen(ptr_to_value));
-				add_iov(c, "\n", 1);
-				}
+            	if(mylist_contains(&trash_both,key)==1)
+            	{
+            		fprintf(stderr,"key present in trash list, ignoring GETs\n");
+            		it=NULL;
+            	}
+            	else
+            	{
+					request_neighbour(key,buf,"get");
+					printf("buf is : %s",buf);
+					if(strcmp(buf,"NOT FOUND"))
+					{
+						deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+						fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+						ptr_to_value=value;
+						ptr_to_length=length;
+						ptr_to_flag=flag;
+						add_iov(c, "VALUE ", 6);
+						add_iov(c, key2, strlen(key2));
+						add_iov(c, " ", 1);
+						add_iov(c,  flag,strlen(ptr_to_flag));
+						add_iov(c, " ", 1);
+						add_iov(c,  length, strlen(ptr_to_length));
+						add_iov(c, "\n", 1);
+						add_iov(c, value, strlen(ptr_to_value));
+						add_iov(c, "\n", 1);
+					}
+            	}
 
             }
             else if(mode == SPLITTING_PARENT && is_within_boundary(resolved_point,my_boundary)==1)
             {
-            	it = item_get(key, nkey);
+            	if(mylist_contains(&trash_both,key)==1)
+				{
+					fprintf(stderr,"key present in trash list, ignoring GETs\n");
+					it=NULL;
+				}
+            	else
+            	{
+            		it = item_get(key, nkey);
+            	}
             }
             else{
                 it = item_get(key, nkey);
@@ -3286,7 +3311,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
 
     /*sprintf(command_to_transfer,"%s %d %d %d %d ",key,(int)nkey,flags,(int)exptime,vlen);*/
     sprintf(key_to_transfer,"%s",key);
-
+    fprintf(stderr,"-------%d------",vlen);
     it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
 
     if (it == 0) {
@@ -3650,11 +3675,11 @@ static void store_key_value(char *key, int flags, int time, int length, char* va
 	  }
 	  else
 	  {
-
+		  fprintf(stderr,"length------:%d",length);
 		  it = item_alloc(key, strlen(key),flags, realtime(time), length);
 		  char *ptr = ITEM_data(it);
-		  //sprintf(ptr,"%s\r\n",value);
-		  sprintf(ptr,"%s",value);
+		  sprintf(ptr,"%s\r\n",value);
+		  //sprintf(ptr,"%s",value);
 		  item_link(it);
 
 		  pthread_mutex_lock(&list_of_keys_lock);
@@ -3816,7 +3841,7 @@ static void getting_key_from_neighbour(char *buf,int sock_fd){
 	if(it)
 	{
 		ptr=strtok(ITEM_suffix(it)," ");
-		serialize_key_value_str(buf,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
+		serialize_key_value_str(buf,ptr,it->exptime,it->nbytes-2,ITEM_data(it),key_value_str);
 		printf("key value str:%s",key_value_str);
 		send(sock_fd, key_value_str, strlen(key_value_str), 0);
 	}
@@ -4096,6 +4121,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send){
         char *key = keys_to_send.array[i];
         item *it = item_get(key,strlen(key));
         ptr=strtok(ITEM_suffix(it)," ");
+        fprintf(stderr,"nbytes---%d",it->nbytes);
         serialize_key_value_str(key,ptr,it->exptime,it->nbytes,ITEM_data(it),key_value_str);
         fprintf(stderr,"sending key_value_str %s\n",key_value_str);
         send(another_node_fd, key_value_str, strlen(key_value_str), 0);
