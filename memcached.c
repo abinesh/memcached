@@ -3675,20 +3675,62 @@ static void delete_key_on_child(int child_fd,char *key){
     usleep(1000);
 }
 
+static void _receive_keys_and_trash_keys(int sockfd){
+	int MAXDATASIZE=1024;
+	int total_keys_to_be_received=0;
+    char buf[1024],buf2[1024];
+    char key[1024];
+    int flag1,flag2,flag3,numbytes,i=0;
+    char value[1024];
+    memset(buf,'\0',1024);
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+    total_keys_to_be_received = atoi(buf);
+    fprintf(stderr,"Total keys to be received = %d\n",total_keys_to_be_received);
+
+    for(i=0;i<total_keys_to_be_received;i++){
+		memset(buf2,0,1024);
+		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
+						perror("recv");
+						exit(1);
+		}
+        fprintf(stderr,"received %s\n",buf2);
+
+        deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
+        fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
+        store_key_value(key,flag1,flag2,flag3,value);
+    }
+
+    memset(buf,'\0',1024);
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+            perror("recv");
+            exit(1);
+    }
+    total_keys_to_be_received = atoi(buf);
+    fprintf(stderr,"Total keys to be deleted = %d\n",total_keys_to_be_received);
+
+    for(i=0;i<total_keys_to_be_received;i++){
+    		memset(buf2,'\0',1024);
+    		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
+    						perror("recv");
+    						exit(1);
+    		}
+            fprintf(stderr,"Received %s\n",buf2);
+            delete_key_locally(buf2);
+            fprintf(stderr,"deleting key %s\n",buf2);
+    }
+}
+
 static void *connect_and_split_thread_routine(void *args)
 {
-	int sockfd, numbytes,i,total_keys_to_be_received;
+	int sockfd, numbytes;
 	int MAXDATASIZE=1024;
 	char buf[MAXDATASIZE];
-	char buf2[MAXDATASIZE];
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
-	char key[1024];
-	int flag1;
-	int flag2;
-	int flag3;
-	char value[1024];
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -3734,45 +3776,7 @@ static void *connect_and_split_thread_routine(void *args)
     fprintf(stderr,"client's boundary assigned by server\n");
     print_boundaries(my_boundary);
 
-    memset(buf,'\0',1024);
-    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
-    total_keys_to_be_received = atoi(buf);
-    fprintf(stderr,"Total keys to be received = %d\n",total_keys_to_be_received);
-
-    for(i=0;i<total_keys_to_be_received;i++){
-		memset(buf2,0,1024);
-		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
-						perror("recv");
-						exit(1);
-		}
-        fprintf(stderr,"received %s\n",buf2);
-
-        deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
-        fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
-        store_key_value(key,flag1,flag2,flag3,value);
-    }
-
-    memset(buf,'\0',1024);
-    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-            perror("recv");
-            exit(1);
-    }
-    total_keys_to_be_received = atoi(buf);
-    fprintf(stderr,"Total keys to be deleted = %d\n",total_keys_to_be_received);
-
-    for(i=0;i<total_keys_to_be_received;i++){
-    		memset(buf2,'\0',1024);
-    		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
-    						perror("recv");
-    						exit(1);
-    		}
-            fprintf(stderr,"Received %s\n",buf2);
-            delete_key_locally(buf2);
-            fprintf(stderr,"deleting key %s\n",buf2);
-    }
+   _receive_keys_and_trash_keys(sockfd);
     close(sockfd);
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD -> NORMAL_NODE\n");
@@ -3960,7 +3964,7 @@ static void *node_removal_listener_thread_routine(void *args){
 	socklen_t sin_size;
 	struct sigaction sa;
 	int yes=1;
-	char s[INET6_ADDRSTRLEN],buf[1024];
+	char s[INET6_ADDRSTRLEN];
 	int rv;
 
 	memset(&hints, 0, sizeof hints);
@@ -4033,10 +4037,8 @@ static void *node_removal_listener_thread_routine(void *args){
     		s, sizeof s);
     		printf("node_removal_listener_thread_routine: got connection from %s\n", s);
 
-            sprintf(buf,"abc");
-    		send(new_fd, "abc", 3, 0);
-
-            close(new_fd); // parent doesn't need this
+            _receive_keys_and_trash_keys(new_fd);
+            close(new_fd);
         }
 }
 
@@ -4229,12 +4231,13 @@ static void *join_request_listener_thread_routine(void * args){
 }
 
 static void process_die_command(conn *c){
-    int sockfd, numbytes;
+    int sockfd,i;
  	int MAXDATASIZE=1024;
  	char buf[MAXDATASIZE];
  	struct addrinfo hints, *servinfo, *p;
  	int rv;
  	char s[INET6_ADDRSTRLEN];
+ 	my_list keys_to_send;
 
     out_string(c, "Die command received, initiating to move all keys to a neighbour\n");
  	memset(&hints, 0, sizeof hints);
@@ -4271,13 +4274,18 @@ static void process_die_command(conn *c){
  	printf("process_die_command : client: connecting to %s\n", s);
  	freeaddrinfo(servinfo); // all done with this structure
 
-     memset(buf,'\0',1024);
- 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
- 		perror("recv");
- 		exit(1);
- 	}
-
  	fprintf(stderr,"In process_die_command, received ACK: %s\n",buf);
+
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_init(&keys_to_send);
+    for(i = 0 ;i< list_of_keys.size; i++){
+        char *key = list_of_keys.array[i];
+        mylist_add(&keys_to_send,key);
+    }
+    pthread_mutex_unlock(&list_of_keys_lock);
+
+    fprintf(stderr,"Migrating keys to neighbour before shutting down\n");
+    _migrate_key_values(sockfd,keys_to_send);
     out_string(c, "Die command complete\n");
     close(sockfd);
 }
