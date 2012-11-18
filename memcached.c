@@ -3953,6 +3953,27 @@ static void *node_propagation_thread_routine(void *args){
 	return 0;
 }
 
+static ZoneBoundary* _recv_boundary_from_child(int child_fd){
+    char buf[1024];
+    int MAXDATASIZE = 1024;
+	memset(buf,'\0',1024);
+    recv(child_fd, buf, MAXDATASIZE-1, 0);
+    ZoneBoundary *child_boundary = (ZoneBoundary *)malloc(sizeof(ZoneBoundary));
+    deserialize_boundary(buf,child_boundary);
+    return child_boundary;
+}
+
+static ZoneBoundary* _merge_boundaries(ZoneBoundary *a,ZoneBoundary *b) {
+    ZoneBoundary *result = (ZoneBoundary *)malloc(sizeof(ZoneBoundary));
+    if(a->from.y == b->from.y && a->to.x == b->from.x && a->to.y == b->to.y){
+        result->from.x = a->from.x;
+        result->from.y = a->from.y;
+        result->to.x = b->to.x;
+        result->to.y = b->to.y;
+    }
+    return result;
+}
+
 static void *node_removal_listener_thread_routine(void *args){
 	if(settings.verbose>1)
         fprintf(stderr,"in node_removal_listener_thread_routine\n");
@@ -4037,7 +4058,12 @@ static void *node_removal_listener_thread_routine(void *args){
     		s, sizeof s);
     		printf("node_removal_listener_thread_routine: got connection from %s\n", s);
 
+    		ZoneBoundary *child_boundary = _recv_boundary_from_child(new_fd);
+            ZoneBoundary *my_new_boundary = _merge_boundaries(&my_boundary,child_boundary);
             _receive_keys_and_trash_keys(new_fd);
+            my_boundary = *my_new_boundary;
+            fprintf(stderr,"My new boundary is:\n");
+            print_boundaries(my_boundary);
             close(new_fd);
         }
 }
@@ -4230,10 +4256,14 @@ static void *join_request_listener_thread_routine(void * args){
     return 0;
 }
 
+static void _send_my_boundary_to(int another_node_fd){
+    char buf[1024];
+    serialize_boundary(my_boundary,buf);
+    send(another_node_fd, buf, strlen(buf), 0);
+}
+
 static void process_die_command(conn *c){
     int sockfd,i;
- 	int MAXDATASIZE=1024;
- 	char buf[MAXDATASIZE];
  	struct addrinfo hints, *servinfo, *p;
  	int rv;
  	char s[INET6_ADDRSTRLEN];
@@ -4274,7 +4304,9 @@ static void process_die_command(conn *c){
  	printf("process_die_command : client: connecting to %s\n", s);
  	freeaddrinfo(servinfo); // all done with this structure
 
- 	fprintf(stderr,"In process_die_command, received ACK: %s\n",buf);
+ 	fprintf(stderr,"In process_die_command\n");
+
+ 	_send_my_boundary_to(sockfd);
 
     pthread_mutex_lock(&list_of_keys_lock);
     mylist_init(&keys_to_send);
