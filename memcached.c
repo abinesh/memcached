@@ -3049,7 +3049,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             	//it=NULL;
             	}
             }
-            else if((mode == SPLITTING_PARENT)&& is_within_boundary(resolved_point,client_boundary)==1){
+            else if((mode == SPLITTING_PARENT || mode == MERGING_CHILD) && is_within_boundary(resolved_point,client_boundary)==1){
                 /*fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
                 it=NULL;*/
 
@@ -3278,7 +3278,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         stats_prefix_record_set(key, nkey);
     }
 
-    if(mode == SPLITTING_PARENT)
+    if(mode == SPLITTING_PARENT || mode == MERGING_CHILD)
     {
         fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
         mylist_add(&trash_both,key);
@@ -3576,7 +3576,7 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
 
             out_string(c, "NOT_FOUND");
     }
-    }else if(mode == SPLITTING_PARENT){
+    }else if(mode == SPLITTING_PARENT || mode == MERGING_CHILD){
         pthread_mutex_lock(&list_of_keys_lock);
         mylist_delete(&list_of_keys, key);
         mylist_add(&trash_both, key);
@@ -3704,6 +3704,9 @@ static void _receive_keys_and_trash_keys(int sockfd){
         fprintf(stderr,"Client side:%s,%d,%d,%d,%s\n",key,flag1,flag2,flag3,value);
         store_key_value(key,flag1,flag2,flag3,value);
     }
+
+    // The following should not be required, but without it, parent didn't receive trash list keys from child when child was departing
+    usleep(1000);
 
     memset(buf,'\0',1024);
     if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
@@ -4328,6 +4331,10 @@ static void process_die_command(conn *c){
 
     fprintf(stderr,"Migrating keys to neighbour before shutting down\n");
     _migrate_key_values(sockfd,keys_to_send);
+
+    fprintf(stderr,"Trashing keys in parent and child:\n");
+    _trash_keys_in_both_nodes(sockfd,trash_both);
+
     out_string(c, "Die command complete\n");
     close(sockfd);
     exit(0);
