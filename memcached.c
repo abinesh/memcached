@@ -3901,14 +3901,34 @@ static void print_all_boundaries() {
 	}
 }
 
-static void getting_key_from_neighbour(char *buf, int sock_fd) {
+static void getting_key_from_neighbour(char *key, int sock_fd) {
 	char *ptr;
 	item *it;
 	char key_value_str[1024];
-	it = item_get(buf, strlen(buf));
-	if (it) {
+	if(mode == NORMAL_NODE){
+    	it = item_get(key, strlen(key));
+	}
+	else
+	if( mode == SPLITTING_PARENT_INIT ||
+        mode == SPLITTING_PARENT_MIGRATING ||
+        mode == SPLITTING_CHILD_INIT ||
+        mode == SPLITTING_CHILD_MIGRATING ||
+        mode == MERGING_PARENT_INIT ||
+        mode == MERGING_PARENT_MIGRATING ||
+        mode == MERGING_CHILD_INIT ||
+        mode == MERGING_CHILD_MIGRATING
+        )
+	{
+        if(mylist_contains(&trash_both,key)==1) {
+            fprintf(stderr,"key present in trash list, ignoring GETs\n");
+            it=NULL;
+        }
+        else it = item_get(key, strlen(key));
+	}
+	if(it)
+	{
 		ptr = strtok(ITEM_suffix(it), " ");
-		serialize_key_value_str(buf, ptr, it->exptime, it->nbytes - 2,
+		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2,
 				ITEM_data(it), key_value_str);
 		printf("key value str:%s", key_value_str);
 		send(sock_fd, key_value_str, strlen(key_value_str), 0);
@@ -3918,11 +3938,53 @@ static void getting_key_from_neighbour(char *buf, int sock_fd) {
 }
 
 static void updating_key_from_neighbour(char *key, int flags, int time, int length, char* value){
-    store_key_value(key,flags,time,length,value);
+	if(mode == NORMAL_NODE){
+        store_key_value(key,flags,time,length,value);
+    }
+    else
+    if( mode == SPLITTING_PARENT_INIT ||
+        mode == SPLITTING_PARENT_MIGRATING ||
+        mode == SPLITTING_CHILD_INIT ||
+        mode == SPLITTING_CHILD_MIGRATING ||
+        mode == MERGING_PARENT_INIT ||
+        mode == MERGING_PARENT_MIGRATING ||
+        mode == MERGING_CHILD_INIT ||
+        mode == MERGING_CHILD_MIGRATING
+        )
+    {
+        if(mylist_contains(&trash_both,key)==1) {
+            fprintf(stderr,"key present in trash list, ignoring PUTs\n");
+        }
+        else{
+            fprintf(stderr,"adding key to trash list and ignoring PUT\n");
+            mylist_add(&trash_both,key);
+        }
+    }
 }
 
 static void deleting_key_from_neighbour(char *key){
-    delete_key_locally(key);
+    if(mode == NORMAL_NODE){
+        delete_key_locally(key);
+    }
+    else
+    if( mode == SPLITTING_PARENT_INIT ||
+        mode == SPLITTING_PARENT_MIGRATING ||
+        mode == SPLITTING_CHILD_INIT ||
+        mode == SPLITTING_CHILD_MIGRATING ||
+        mode == MERGING_PARENT_INIT ||
+        mode == MERGING_PARENT_MIGRATING ||
+        mode == MERGING_CHILD_INIT ||
+        mode == MERGING_CHILD_MIGRATING
+        )
+    {
+        if(mylist_contains(&trash_both,key)==1) {
+            fprintf(stderr,"key present in trash list, ignoring DELETE\n");
+        }
+        else{
+            fprintf(stderr,"adding key to trash list and ignoring DELETE\n");
+            mylist_add(&trash_both,key);
+        }
+    }
 }
 
 static void *node_propagation_thread_routine(void *args){
