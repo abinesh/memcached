@@ -601,8 +601,8 @@ typedef struct tagZoneBoundary {
     Point to;
 } ZoneBoundary;
 
-ZoneBoundary my_boundary,world_boundary,client_boundary, my_new_boundary;
 
+ZoneBoundary my_boundary,world_boundary,client_boundary, my_new_boundary,neighbour_boundary;
 //pthread_t join_request_listener_thread;
 
 #define PORT "11311" // the port users will be connecting to
@@ -615,6 +615,7 @@ typedef struct tagList{
 }my_list;
 
 typedef struct tagPortNumbers{
+	ZoneBoundary boundary;
     char request_propogation[10];
     char node_removal[10];
 
@@ -631,4 +632,3 @@ void *(*function1)(void *);
 void *(*function2)(void *);
 } function_pointer;
 function_pointer *fp;
-//struct thread_param *tp;

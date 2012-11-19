@@ -3704,8 +3704,7 @@ static void store_key_value(char *key, int flags, int time, int length,
 	if (it) {
 		item_unlink(it);
 		item_remove(it);
-	} else {
-		fprintf(stderr, "length------:%d", length);
+		}
 		it = item_alloc(key, strlen(key), flags, realtime(time), length);
 		char *ptr = ITEM_data(it);
 		sprintf(ptr, "%s\r\n", value);
@@ -3716,7 +3715,7 @@ static void store_key_value(char *key, int flags, int time, int length,
 		mylist_delete(&list_of_keys, key);
 		mylist_add(&list_of_keys, key);
 		pthread_mutex_unlock(&list_of_keys_lock);
-	}
+
 }
 
 static void delete_key_locally(char *key) {
@@ -3853,9 +3852,24 @@ static void *connect_and_split_thread_routine(void *args) {
 	}
 
 	deserialize_boundary(buf, &my_boundary);
+	me.boundary=my_boundary;
 	fprintf(stderr, "client's boundary assigned by server\n");
-	print_boundaries(my_boundary);
-	
+
+	print_boundaries(me.boundary);
+
+
+	memset(buf, '\0', 1024);
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+		}
+
+		deserialize_boundary(buf, &neighbour_boundary);
+		neighbour.boundary=neighbour_boundary;
+		fprintf(stderr, "client received neighbours boundary\n");
+		print_boundaries(neighbour.boundary);
+
+
 	/////////
     memset(buf, '\0', 1024);
         if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
@@ -4345,7 +4359,9 @@ static void *join_request_listener_thread_routine(void * args) {
 	}
 
 	char client_boundary_str[1024];
+	char my_new_boundary_str[1024];
 	serialize_boundary(client_boundary, client_boundary_str);
+	serialize_boundary(my_new_boundary, my_new_boundary_str);
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -4419,6 +4435,7 @@ static void *join_request_listener_thread_routine(void * args) {
 
 		sprintf(neighbour.request_propogation, "11313");
 		sprintf(neighbour.node_removal, "11315");
+		neighbour.boundary=client_boundary;
 
         pthread_mutex_lock(&prop_mutex);
         pthread_cond_signal(&prop_cv);
@@ -4431,7 +4448,14 @@ static void *join_request_listener_thread_routine(void * args) {
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
 
-        sprintf(me_request_propogation, "11312");
+		usleep(1000);
+		if (send(new_fd, my_new_boundary_str, strlen(my_new_boundary_str), 0)
+						== -1)
+					perror("send");
+
+
+
+		sprintf(me_request_propogation, "11312");
 		sprintf(me_node_removal, "11314");
 		sprintf(neighbour_request_propogation, "11313");
 		sprintf(neighbour_node_removal, "11315");
