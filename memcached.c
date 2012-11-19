@@ -2902,103 +2902,24 @@ static char *request_neighbour(char *key, char *buf, char *type,neighbour_info *
 
 	usleep(1000);
 	memset(buf, '\0', 1024);
-	//numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0);
 	recv(sockfd, buf, MAXDATASIZE - 1, 0);
 
 	close(sockfd);
 	return buf;
-
-	/*deserialize_boundary(buf,&my_boundary);
-	 fprintf(stderr,"client's boundary assigned by server\n");
-	 print_boundaries(my_boundary);
-	 */
-
-	//     deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
-	//return 0;
 }
 
-/*
- static int set_in_neighbour(char *key)
- {
- int sockfd;
- int MAXDATASIZE=1024;
- char buf[MAXDATASIZE];
- struct addrinfo hints, *servinfo, *p;
- int rv;
- char s[INET6_ADDRSTRLEN];
-
- memset(&hints, 0, sizeof hints);
- hints.ai_family = AF_UNSPEC;
- hints.ai_socktype = SOCK_STREAM;
- if ((rv = getaddrinfo("localhost",neighbour.request_propogation, &hints, &servinfo)) != 0) {
- fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
- return 1;
- }
-
- for(p = servinfo; p != NULL; p = p->ai_next) {
- if ((sockfd = socket(p->ai_family, p->ai_socktype,
- p->ai_protocol)) == -1) {
- perror("set_in_neighbour : client: socket");
- continue;
- }
-
- if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
- close(sockfd);
- perror("set_in_neighbour : client: connect");
- continue;
- }
-
- break;
- }
-
- if (p == NULL) {
- fprintf(stderr, "set_in_neighbour : client: failed to connect\n");
- return 2;
- }
-
- inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
- s, sizeof s);
- printf("set_in_neighbour : client: connecting to %s\n", s);
- freeaddrinfo(servinfo); // all done with this structure
-
- memset(buf,'\0',1024);
- printf("set_in_neighbour : sending key %s\n", key);
- send(sockfd, key, strlen(key), 0);
-
- memset(buf,'\0',1024);
- recv(sockfd, buf, MAXDATASIZE-1, 0);
- close(sockfd);
- return 0;
-
-
-
-
- deserialize_boundary(buf,&my_boundary);
- fprintf(stderr,"client's boundary assigned by server\n");
- print_boundaries(my_boundary);
-
-
-
-
- //     deserialize_key_value_str(key,&flag1,&flag2,&flag3,value,buf2);
-
-
- //return 0;
- }
- */
-
 static void serialize_key_value_str(char *key, char *flag1, int flag2,
-		int flag3, char *value, char *key_value_str) {
+    int flag3, char *value, char *key_value_str) {
 	sprintf(key_value_str, "%s %s %d %d %s", key, flag1, flag2, flag3, value);
 	fprintf(stderr, "STRING:%s", key_value_str);
 }
 
 static void deserialize_key_value_str(char *key, int *flag1, int *flag2,
-		int *flag3, char *value, char *key_value_str) {
+    int *flag3, char *value, char *key_value_str) {
 	sscanf(key_value_str, "%s %d %d %d %s", key, flag1, flag2, flag3, value);
 }
 static void deserialize_key_value_str2(char *key, char *flag1, int *flag2,
-		char *flag3, char *value, char *key_value_str) {
+    char *flag3, char *value, char *key_value_str) {
 	sscanf(key_value_str, "%s %s %d %s %s", key, flag1, flag2, flag3, value);
 }
 
@@ -3358,7 +3279,6 @@ static void process_update_command(conn *c, token_t *tokens,
         }
     }
 
-    /*sprintf(command_to_transfer,"%s %d %d %d %d ",key,(int)nkey,flags,(int)exptime,vlen);*/
     sprintf(key_to_transfer,"%s",key);
     fprintf(stderr,"-------%d------",vlen);
     it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
@@ -6791,8 +6711,6 @@ if (is_new_joining_node == 0) {
 	fprintf(stderr, "Mode set as : NORMAL_NODE\n");
 	sprintf(me.request_propogation, "11312");
 	sprintf(me.node_removal, "11314");
-	/*sprintf(neighbour.request_propogation, "11313");
-	sprintf(neighbour.node_removal, "11315");*/
 
 	for(i =0 ;i < 10 ;i++)
 	{
@@ -6807,18 +6725,6 @@ if (is_new_joining_node == 0) {
 } else {
     mode = SPLITTING_CHILD_INIT;
     fprintf(stderr, "Mode set as : SPLITTING_CHILD_INIT\n");
-    // sprintf(neighbour.request_propogation,"%s","0");
-	/*sprintf(me.request_propogation,"11313");
-	 sprintf(me.node_removal ,"11315");
-	 sprintf(neighbour.request_propogation, "11312");
-	 sprintf(neighbour.node_removal, "11314");*/
-
-
-	for(i =0 ;i < 10 ;i++)
-	{
-		strcpy(neighbour[i].node_removal,"NULL");
-		strcpy(neighbour[i].request_propogation,"NULL");
-	}
 	thread_init(settings.num_threads, main_base, NULL,
 			connect_and_split_thread_routine,
 			node_removal_listener_thread_routine,
