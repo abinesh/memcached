@@ -3032,98 +3032,93 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 				fprintf(stderr, "Key %s resolves to point  = (%f,%f)\n", key,
 						resolved_point.x, resolved_point.y);
 
-			if (is_within_boundary(resolved_point, my_boundary) != 1) {
-				if (mylist_contains(&trash_both, key) == 1) {
-					fprintf(stderr,
-							"key present in trash list, ignoring GETs\n");
-					it = NULL;
-				} else {
-					fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n",
-							resolved_point.x, resolved_point.y,
-							my_boundary.from.x, my_boundary.from.y,
-							my_boundary.to.x, my_boundary.to.y);
-					request_neighbour(key, buf, "get");
-					printf("buf is : %s", buf);
-					if (strcmp(buf, "NOT FOUND")) {
-						deserialize_key_value_str2(key2, flag, &time, length,
-								value, buf);
-						fprintf(stderr, "final:%s %s %d %s %s", key2, flag,
-								time, length, value);
-						ptr_to_value = value;
-						ptr_to_length = length;
-						ptr_to_flag = flag;
-						add_iov(c, "VALUE ", 6);
-						add_iov(c, key2, strlen(key2));
-						add_iov(c, " ", 1);
-						add_iov(c, flag, strlen(ptr_to_flag));
-						add_iov(c, " ", 1);
-						add_iov(c, length, strlen(ptr_to_length));
-						add_iov(c, "\n", 1);
-						add_iov(c, value, strlen(ptr_to_value));
-						add_iov(c, "\n", 1);
-						//it=NULL;
-					}
-				}
-			} else if ((mode == SPLITTING_PARENT_MIGRATING || mode == SPLITTING_PARENT_MIGRATING)
-					&& is_within_boundary(resolved_point, client_boundary)
-							== 1) {
-				/*fprintf(stderr,"Node in splitting mode, ignoring GETs\n");
-				 it=NULL;*/
+            if(mode == NORMAL_NODE){
+                if(is_within_boundary(resolved_point,my_boundary)==1){
+                    it = item_get(key, nkey);
+                }
+                else{
+                    fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+                    request_neighbour(key,buf,"get");
+                    printf("buf is : %s",buf);
+                    if(strcmp(buf,"NOT FOUND"))
+                    {
+                        deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+                        fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+                        ptr_to_value=value;
+                        ptr_to_length=length;
+                        ptr_to_flag=flag;
+                        add_iov(c, "VALUE ", 6);
+                        add_iov(c, key2, strlen(key2));
+                        add_iov(c, " ", 1);
+                        add_iov(c,  flag,strlen(ptr_to_flag));
+                        add_iov(c, " ", 1);
+                        add_iov(c,  length, strlen(ptr_to_length));
+                        add_iov(c, "\n", 1);
+                        add_iov(c, value, strlen(ptr_to_value));
+                        add_iov(c, "\n", 1);
+                    }
+                }
+            }
+            else
+                if( mode == SPLITTING_PARENT_INIT ||
+                    mode == SPLITTING_PARENT_MIGRATING ||
+                    mode == SPLITTING_CHILD_INIT ||
+                    mode == SPLITTING_CHILD_MIGRATING ||
+                    mode == MERGING_PARENT_INIT ||
+                    mode == MERGING_PARENT_MIGRATING ||
+                    mode == MERGING_CHILD_INIT ||
+                    mode == MERGING_CHILD_MIGRATING
+                    )
+            {
+                if(is_within_boundary(resolved_point,my_new_boundary)==1){
+                    it = item_get(key, nkey);
+                }
+                else{
+                    if(mylist_contains(&trash_both,key)==1)
+                    {
+                        fprintf(stderr,"key present in trash list, ignoring GETs\n");
+                        it=NULL;
+                    }
+                    else
+                    {
+                        fprintf(stderr,"Point (%f,%f)\n is not in new zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_new_boundary.from.x,my_new_boundary.from.y,my_new_boundary.to.x,my_new_boundary.to.y);
+                        request_neighbour(key,buf,"get");
+                        printf("buf is : %s",buf);
+                        if(strcmp(buf,"NOT FOUND"))
+                        {
+                            deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+                            fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+                            ptr_to_value=value;
+                            ptr_to_length=length;
+                            ptr_to_flag=flag;
+                            add_iov(c, "VALUE ", 6);
+                            add_iov(c, key2, strlen(key2));
+                            add_iov(c, " ", 1);
+                            add_iov(c,  flag,strlen(ptr_to_flag));
+                            add_iov(c, " ", 1);
+                            add_iov(c,  length, strlen(ptr_to_length));
+                            add_iov(c, "\n", 1);
+                            add_iov(c, value, strlen(ptr_to_value));
+                            add_iov(c, "\n", 1);
+                        }
+                    }
+                }
+            }
 
-				if (mylist_contains(&trash_both, key) == 1) {
-					fprintf(stderr,
-							"key present in trash list, ignoring GETs\n");
-					it = NULL;
-				} else {
-					request_neighbour(key, buf, "get");
-					printf("buf is : %s", buf);
-					if (strcmp(buf, "NOT FOUND")) {
-						deserialize_key_value_str2(key2, flag, &time, length,
-								value, buf);
-						fprintf(stderr, "final:%s %s %d %s %s", key2, flag,
-								time, length, value);
-						ptr_to_value = value;
-						ptr_to_length = length;
-						ptr_to_flag = flag;
-						add_iov(c, "VALUE ", 6);
-						add_iov(c, key2, strlen(key2));
-						add_iov(c, " ", 1);
-						add_iov(c, flag, strlen(ptr_to_flag));
-						add_iov(c, " ", 1);
-						add_iov(c, length, strlen(ptr_to_length));
-						add_iov(c, "\n", 1);
-						add_iov(c, value, strlen(ptr_to_value));
-						add_iov(c, "\n", 1);
-					}
-				}
-
-			} else if (mode == SPLITTING_PARENT_MIGRATING
-					&& is_within_boundary(resolved_point, my_boundary) == 1) {
-				if (mylist_contains(&trash_both, key) == 1) {
-					fprintf(stderr,
-							"key present in trash list, ignoring GETs\n");
-					it = NULL;
-				} else {
-					it = item_get(key, nkey);
-				}
-			} else {
-				it = item_get(key, nkey);
-			}
-			if (settings.detail_enabled) {
-				stats_prefix_record_get(key, nkey, NULL != it);
-			}
-			if (it) {
-				if (i >= c->isize) {
-					item **new_list = realloc(c->ilist,
-							sizeof(item *) * c->isize * 2);
-					if (new_list) {
-						c->isize *= 2;
-						c->ilist = new_list;
-					} else {
-						item_remove(it);
-						break;
-					}
-				}
+            if (settings.detail_enabled) {
+                stats_prefix_record_get(key, nkey, NULL != it);
+            }
+            if (it) {
+                if (i >= c->isize) {
+                    item **new_list = realloc(c->ilist, sizeof(item *) * c->isize * 2);
+                    if (new_list) {
+                        c->isize *= 2;
+                        c->ilist = new_list;
+                    } else {
+                        item_remove(it);
+                        break;
+                    }
+                }
 
 				/*
 				 * Construct the response. Each hit adds three elements to the
@@ -4220,7 +4215,6 @@ static void *join_request_listener_thread_routine(void * args) {
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
 //ZoneBoundary client_boundary,my_new_boundary;
-	ZoneBoundary my_new_boundary;
 	float x1, y1, x2, y2;
 
 	x1 = my_boundary.from.x;
