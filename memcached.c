@@ -3312,6 +3312,7 @@ static void process_update_command(conn *c, token_t *tokens,
         fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
 
         if(is_within_boundary(resolved_point,my_new_boundary)!=1){
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_new_boundary.from.x,my_new_boundary.from.y,my_new_boundary.to.x,my_new_boundary.to.y);
             fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
             mylist_add(&trash_both,key);
         }
@@ -3548,11 +3549,40 @@ enum delta_result_type do_add_delta(conn *c, const char *key, const size_t nkey,
 	return OK;
 }
 
+static void _normal_delete_operation(conn *c, char* key,size_t nkey){
+    item *it;
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_delete(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
+
+    if (settings.detail_enabled) {
+        stats_prefix_record_delete(key, nkey);
+    }
+
+    it = item_get(key, nkey);
+    if (it) {
+        MEMCACHED_COMMAND_DELETE(c->sfd, ITEM_key(it), it->nkey);
+
+        pthread_mutex_lock(&c->thread->stats.mutex);
+        c->thread->stats.slab_stats[it->slabs_clsid].delete_hits++;
+        pthread_mutex_unlock(&c->thread->stats.mutex);
+
+        item_unlink(it);
+        item_remove(it);      /* release our reference */
+        out_string(c, "DELETED");
+    } else {
+        pthread_mutex_lock(&c->thread->stats.mutex);
+        c->thread->stats.delete_misses++;
+        pthread_mutex_unlock(&c->thread->stats.mutex);
+
+        out_string(c, "NOT_FOUND");
+    }
+}
+
 static void process_delete_command(conn *c, token_t *tokens,
 		const size_t ntokens) {
 	char *key;
 	size_t nkey;
-	item *it;
 	char buf[1024];
 
 	assert(c != NULL);
@@ -3577,55 +3607,41 @@ static void process_delete_command(conn *c, token_t *tokens,
 		return;
 	}
 	Point resolved_point = key_point(key);
-	if (is_within_boundary(resolved_point, my_boundary) != 1) {
 
-		fprintf(stderr,
-				"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n",
-				resolved_point.x, resolved_point.y, my_boundary.from.x,
-				my_boundary.from.y, my_boundary.to.x, my_boundary.to.y);
-		request_neighbour(key, buf, "delete");
-		out_string(c, "DELETED");
-	} else if (mode == NORMAL_NODE) {
-		pthread_mutex_lock(&list_of_keys_lock);
-		mylist_delete(&list_of_keys, key);
-		pthread_mutex_unlock(&list_of_keys_lock);
+    if(mode == NORMAL_NODE){
+        if(is_within_boundary(resolved_point,my_boundary)==1){
+          _normal_delete_operation(c,key,nkey);
+        }
+        else{
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            request_neighbour(key,buf,"delete");
+            out_string(c, "DELETED");
+        }
+    }
+    else
+        if( mode == SPLITTING_PARENT_INIT ||
+            mode == SPLITTING_PARENT_MIGRATING ||
+            mode == SPLITTING_CHILD_INIT ||
+            mode == SPLITTING_CHILD_MIGRATING ||
+            mode == MERGING_PARENT_INIT ||
+            mode == MERGING_PARENT_MIGRATING ||
+            mode == MERGING_CHILD_INIT ||
+            mode == MERGING_CHILD_MIGRATING
+        )
+    {
+        if(is_within_boundary(resolved_point,my_new_boundary)==1){
+            _normal_delete_operation(c,key,nkey);
+        }
+        else
+        {
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_new_boundary.from.x,my_new_boundary.from.y,my_new_boundary.to.x,my_new_boundary.to.y);
+            pthread_mutex_lock(&list_of_keys_lock);
+            mylist_delete(&list_of_keys, key);
+            mylist_add(&trash_both, key);
+            pthread_mutex_unlock(&list_of_keys_lock);
 
-		if (settings.detail_enabled) {
-			stats_prefix_record_delete(key, nkey);
-		}
-
-		it = item_get(key, nkey);
-		if (it) {
-			MEMCACHED_COMMAND_DELETE(c->sfd, ITEM_key(it), it->nkey);
-
-			pthread_mutex_lock(&c->thread->stats.mutex);
-			c->thread->stats.slab_stats[it->slabs_clsid].delete_hits++;
-			pthread_mutex_unlock(&c->thread->stats.mutex);
-
-			item_unlink(it);
-			item_remove(it); /* release our reference */
-			out_string(c, "DELETED");
-		} else {
-			pthread_mutex_lock(&c->thread->stats.mutex);
-			c->thread->stats.delete_misses++;
-			pthread_mutex_unlock(&c->thread->stats.mutex);
-
-			out_string(c, "NOT_FOUND");
-		}
-	} else if (mode == SPLITTING_PARENT_MIGRATING || mode == MERGING_CHILD_MIGRATING) {
-		pthread_mutex_lock(&list_of_keys_lock);
-		mylist_delete(&list_of_keys, key);
-		mylist_add(&trash_both, key);
-		pthread_mutex_unlock(&list_of_keys_lock);
-
-            out_string(c, "NOT_FOUND");
-    }else if(mode == SPLITTING_PARENT_INIT || mode == MERGING_CHILD_INIT){
-        pthread_mutex_lock(&list_of_keys_lock);
-        mylist_delete(&list_of_keys, key);
-        mylist_add(&trash_both, key);
-        pthread_mutex_unlock(&list_of_keys_lock);
-
-        out_string(c, "IGNORING DELETE; KEY STORED IN TRASH LIST");
+            out_string(c, "IGNORING DELETE; KEY STORED IN TRASH LIST");
+        }
     }
 }
 
