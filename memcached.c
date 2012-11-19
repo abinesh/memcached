@@ -3082,24 +3082,29 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     else
                     {
                         fprintf(stderr,"Point (%f,%f)\n is not in new zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_new_boundary.from.x,my_new_boundary.from.y,my_new_boundary.to.x,my_new_boundary.to.y);
-                        request_neighbour(key,buf,"get");
-                        printf("buf is : %s",buf);
-                        if(strcmp(buf,"NOT FOUND"))
+
+                        it= item_get(key,nkey);
+                        if(it==NULL)
                         {
-                            deserialize_key_value_str2(key2,flag,&time,length,value,buf);
-                            fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
-                            ptr_to_value=value;
-                            ptr_to_length=length;
-                            ptr_to_flag=flag;
-                            add_iov(c, "VALUE ", 6);
-                            add_iov(c, key2, strlen(key2));
-                            add_iov(c, " ", 1);
-                            add_iov(c,  flag,strlen(ptr_to_flag));
-                            add_iov(c, " ", 1);
-                            add_iov(c,  length, strlen(ptr_to_length));
-                            add_iov(c, "\n", 1);
-                            add_iov(c, value, strlen(ptr_to_value));
-                            add_iov(c, "\n", 1);
+							request_neighbour(key,buf,"get");
+							printf("buf is : %s",buf);
+							if(strcmp(buf,"NOT FOUND"))
+							{
+								deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+								fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+								ptr_to_value=value;
+								ptr_to_length=length;
+								ptr_to_flag=flag;
+								add_iov(c, "VALUE ", 6);
+								add_iov(c, key2, strlen(key2));
+								add_iov(c, " ", 1);
+								add_iov(c,  flag,strlen(ptr_to_flag));
+								add_iov(c, " ", 1);
+								add_iov(c,  length, strlen(ptr_to_length));
+								add_iov(c, "\n", 1);
+								add_iov(c, value, strlen(ptr_to_value));
+								add_iov(c, "\n", 1);
+							}
                         }
                     }
                 }
@@ -3917,7 +3922,7 @@ static void print_all_boundaries() {
 
 static void getting_key_from_neighbour(char *key, int sock_fd) {
 	char *ptr;
-	item *it;
+	item *it=NULL;
 	char key_value_str[1024];
 	if(mode == NORMAL_NODE){
     	it = item_get(key, strlen(key));
