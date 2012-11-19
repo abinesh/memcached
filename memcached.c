@@ -3917,9 +3917,17 @@ static void getting_key_from_neighbour(char *buf, int sock_fd) {
 	}
 }
 
-static void *node_propagation_thread_routine(void *args) {
-	if (settings.verbose > 1)
-		fprintf(stderr, "in node_propagation_thread_routine\n");
+static void updating_key_from_neighbour(char *key, int flags, int time, int length, char* value){
+    store_key_value(key,flags,time,length,value);
+}
+
+static void deleting_key_from_neighbour(char *key){
+    delete_key_locally(key);
+}
+
+static void *node_propagation_thread_routine(void *args){
+	if(settings.verbose>1)
+	        fprintf(stderr,"in node_propagation_thread_routine\n");
 	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
 	struct addrinfo hints, *servinfo, *p;
 	struct sockaddr_storage their_addr; // connector's address information
@@ -4033,22 +4041,23 @@ static void *node_propagation_thread_routine(void *args) {
 
 			sscanf(buf, "%s %s %d %d %d %s", cmd, key, &flag, &time, &length,
 					value);
-			store_key_value(key, flag, time, length, value);
-		}
+				sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
+				updating_key_from_neighbour(key,flag,time,length,value);
+    		}
+    		else if(!strcmp(buf,"delete"))
+			{
+				memset(buf,'\0',1024);
+				if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
 
-		if (!strcmp(buf, "delete")) {
-			memset(buf, '\0', 1024);
-			if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
-				perror("recv");
-				exit(1);
+				deleting_key_from_neighbour(buf);
 			}
-
-			delete_key_locally(buf);
-		}
+            close(new_fd);
+        }
 
 		close(new_fd); // parent doesn't need this
-	}
-
 	return 0;
 }
 
