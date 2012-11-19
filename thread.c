@@ -786,7 +786,7 @@ static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 
 static void start_listening_on_join_port(void *(*join_request_listener_thread_routine)(void *)){
     static_joining_thread_routine = join_request_listener_thread_routine;
-	pthread_create(&join_request_listener_thread, 0,wrapper_routine_for_child, NULL);
+	pthread_create(&join_request_listener_thread, 0,wrapper_routine_for_child, &item_lock_type_key);
 }
 
 

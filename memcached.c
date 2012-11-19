@@ -4393,6 +4393,38 @@ static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
 
 
 
+static void* _parent_split_migrate_phase(void *arg){
+    int i=0;
+    my_list keys_to_send;
+    int child_fd = *((int*)(arg));
+
+    mode = SPLITTING_PARENT_MIGRATING;
+    fprintf(stderr,"Mode changed: SPLITTING_PARENT_INIT -> SPLITTING_PARENT_MIGRATING\n");
+
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_init(&keys_to_send);
+    for (i = 0; i < list_of_keys.size; i++) {
+        char *key = list_of_keys.array[i];
+        Point resolved_point = key_point(key);
+        if (is_within_boundary(resolved_point, client_boundary) == 1)
+            mylist_add(&keys_to_send, key);
+    }
+    pthread_mutex_unlock(&list_of_keys_lock);
+
+    fprintf(stderr, "Migrating keys:\n");
+    _migrate_key_values(child_fd, keys_to_send);
+
+    fprintf(stderr, "Trashing keys in parent and child:\n");
+    _trash_keys_in_both_nodes(child_fd, trash_both);
+
+    close(child_fd); // parent doesn't need this
+    my_boundary = my_new_boundary;
+    print_all_boundaries();
+    mode = NORMAL_NODE;
+    fprintf(stderr,"Mode changed: SPLITTING_PARENT_MIGRATING -> NORMAL_NODE\n");
+    return 0;
+}
+
 static void *join_request_listener_thread_routine(void * args) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "in join_request_listener_thread_routine ");
@@ -4405,8 +4437,9 @@ static void *join_request_listener_thread_routine(void * args) {
 	int yes = 1;
 	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
-	int counter;
-
+    int counter;
+	pthread_key_t *item_lock_type_key = (pthread_key_t *)args;
+    item_lock_type_key = NULL;
 	char me_request_propogation[1024], me_node_removal[1024];
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
 
@@ -4468,8 +4501,6 @@ static void *join_request_listener_thread_routine(void * args) {
 			"join_request_listener_thread_routine : server: waiting for connections...\n");
 
 	while (1) { // main accept() loop
-		int i = 0;
-		my_list keys_to_send;
 
 		sin_size = sizeof their_addr;
 		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
@@ -4572,37 +4603,11 @@ static void *join_request_listener_thread_routine(void * args) {
 				== -1)
 			perror("send");
 
-		pthread_mutex_lock(&prop_mutex);
-		pthread_cond_signal(&prop_cv);
-		pthread_mutex_unlock(&prop_mutex);
-
-
-
-
-        mode = SPLITTING_PARENT_MIGRATING;
-        fprintf(stderr,"Mode changed: SPLITTING_PARENT_INIT -> SPLITTING_PARENT_MIGRATING\n");
-
-		pthread_mutex_lock(&list_of_keys_lock);
-		mylist_init(&keys_to_send);
-		for (i = 0; i < list_of_keys.size; i++) {
-			char *key = list_of_keys.array[i];
-			Point resolved_point = key_point(key);
-			if (is_within_boundary(resolved_point, client_boundary) == 1)
-				mylist_add(&keys_to_send, key);
-		}
-		pthread_mutex_unlock(&list_of_keys_lock);
-
-		fprintf(stderr, "Migrating keys:\n");
-		_migrate_key_values(new_fd, keys_to_send);
-
-		fprintf(stderr, "Trashing keys in parent and child:\n");
-		_trash_keys_in_both_nodes(new_fd, trash_both);
-
-		close(new_fd); // parent doesn't need this
-		my_boundary = my_new_boundary;
-		print_all_boundaries();
-		mode = NORMAL_NODE;
-        fprintf(stderr,"Mode changed: SPLITTING_PARENT_MIGRATING -> NORMAL_NODE\n");
+        pthread_mutex_lock(&prop_mutex);
+        pthread_cond_signal(&prop_cv);
+        pthread_mutex_unlock(&prop_mutex);
+        
+        _parent_split_migrate_phase(&new_fd);
 	}
 	return 0;
 }
