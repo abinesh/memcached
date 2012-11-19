@@ -2888,16 +2888,16 @@ static char *request_neighbour(char *key, char *buf, char *type,neighbour_info *
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
 			sizeof s);
-	printf("request_neighbour : client: connecting to %s\n", s);
+	fprintf(stderr,"request_neighbour : client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
 
 	memset(buf, '\0', 1024);
-	printf("request_neighbour : sending type %s\n", type);
+	fprintf(stderr,"request_neighbour : sending type %s\n", type);
 	send(sockfd, type, strlen(type), 0);
 	usleep(1000);
 
 	memset(buf, '\0', 1024);
-	printf("request_neighbour : sending key/command %s\n", key);
+	fprintf(stderr,"request_neighbour : sending key/command %s\n", key);
 	send(sockfd, key, strlen(key), 0);
 
 	usleep(1000);
@@ -3072,7 +3072,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 
                     get_neighbour_information(key,info);
                     request_neighbour(key,buf,"get",info);
-                    printf("buf is : %s",buf);
+                    fprintf(stderr, "buf is : %s",buf);
                     if(strcmp(buf,"NOT FOUND"))
                     {
                         deserialize_key_value_str2(key2,flag,&time,length,value,buf);
@@ -3122,7 +3122,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                             get_neighbour_information(key,info);
                             fprintf(stderr,"\n-------info-%s-\n",info->request_propogation);
 							request_neighbour(key,buf,"get",info);
-							printf("buf is : %s",buf);
+							fprintf(stderr, "buf is : %s",buf);
 							if(strcmp(buf,"NOT FOUND"))
 							{
 								deserialize_key_value_str2(key2,flag,&time,length,value,buf);
@@ -3900,7 +3900,7 @@ static void *connect_and_split_thread_routine(void *args) {
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
 			sizeof s);
-	printf("connect_and_split_thread_routine : client: connecting to %s\n", s);
+	fprintf(stderr,"connect_and_split_thread_routine : client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
 
 	//receiving self boundary
@@ -4028,7 +4028,7 @@ static void getting_key_from_neighbour(char *key, int sock_fd) {
 		ptr = strtok(ITEM_suffix(it), " ");
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2,
 				ITEM_data(it), key_value_str);
-		printf("key value str:%s", key_value_str);
+		fprintf(stderr,"key value str:%s", key_value_str);
 		send(sock_fd, key_value_str, strlen(key_value_str), 0);
 	} else {
 		send(sock_fd, "NOT FOUND", 9, 0);
@@ -4160,7 +4160,7 @@ static void *node_propagation_thread_routine(void *args){
 		perror("sigaction");
 		exit(1);
 	}
-	printf(
+	fprintf(stderr,
 			"node_propagation_thread_routine : server: waiting for connections...\n");
 
 	while (1) { // main accept() loop
@@ -4175,7 +4175,7 @@ static void *node_propagation_thread_routine(void *args){
 
 		inet_ntop(their_addr.ss_family,
 				get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-		printf("node_propagation_thread_routine: got connection from %s\n", s);
+		fprintf(stderr, "node_propagation_thread_routine: got connection from %s\n", s);
 
 		memset(buf, '\0', 1024);
 		if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
@@ -4310,7 +4310,7 @@ static void *node_removal_listener_thread_routine(void *args) {
 		perror("sigaction");
 		exit(1);
 	}
-	printf(
+	fprintf(stderr,
 			"node_removal_listener_thread_routine : server: waiting for connections...\n");
 
 	while (1) { // main accept() loop
@@ -4325,7 +4325,7 @@ static void *node_removal_listener_thread_routine(void *args) {
 
 		inet_ntop(their_addr.ss_family,
 				get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-		printf("node_removal_listener_thread_routine: got connection from %s\n",
+		fprintf(stderr, "node_removal_listener_thread_routine: got connection from %s\n",
 				s);
 
             mode = MERGING_PARENT_INIT;
@@ -4368,7 +4368,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 				ITEM_data(it), key_value_str);
 		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
 		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
-		usleep(1000000);
+		usleep(1000);
 		delete_key_locally(key);
 	}
 }
@@ -4425,6 +4425,19 @@ static void* _parent_split_migrate_phase(void *arg){
     return 0;
 }
 
+typedef struct tagSplitMigrateKeysArgs{
+    int child_fd;
+    pthread_key_t item_lock_type_key;
+} split_migrate_key_args;
+
+static void* split_migrate_keys_routine(void *tagArgs){
+    split_migrate_key_args *args = tagArgs;
+    uint8_t lock_type = ITEM_LOCK_GRANULAR;
+    pthread_setspecific(args->item_lock_type_key, &lock_type);
+    _parent_split_migrate_phase(&args->child_fd);
+    return 0;
+}
+
 static void *join_request_listener_thread_routine(void * args) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "in join_request_listener_thread_routine ");
@@ -4439,7 +4452,6 @@ static void *join_request_listener_thread_routine(void * args) {
 	int rv;
     int counter;
 	pthread_key_t *item_lock_type_key = (pthread_key_t *)args;
-    item_lock_type_key = NULL;
 	char me_request_propogation[1024], me_node_removal[1024];
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
 
@@ -4497,11 +4509,9 @@ static void *join_request_listener_thread_routine(void * args) {
 		perror("sigaction");
 		exit(1);
 	}
-	printf(
-			"join_request_listener_thread_routine : server: waiting for connections...\n");
 
 	while (1) { // main accept() loop
-
+    	fprintf(stderr,"join_request_listener_thread_routine : server: waiting for connections...\n");
 		sin_size = sizeof their_addr;
 		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
 
@@ -4512,7 +4522,7 @@ static void *join_request_listener_thread_routine(void * args) {
 
 		inet_ntop(their_addr.ss_family,
 				get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-		printf(
+		fprintf(stderr,
 				"join_request_listener_thread_routine : server: got connection from %s\n",
 				s);
 
@@ -4602,12 +4612,16 @@ static void *join_request_listener_thread_routine(void * args) {
 		if (send(new_fd, buf, strlen(buf), 0)
 				== -1)
 			perror("send");
-
+////
         pthread_mutex_lock(&prop_mutex);
         pthread_cond_signal(&prop_cv);
         pthread_mutex_unlock(&prop_mutex);
-        
-        _parent_split_migrate_phase(&new_fd);
+
+        pthread_t split_migrate_keys_thread;
+        split_migrate_key_args args;
+        args.child_fd = new_fd;
+        args.item_lock_type_key = *item_lock_type_key;
+        pthread_create(&split_migrate_keys_thread, 0,split_migrate_keys_routine,(void*)&args);
 	}
 	return 0;
 }
@@ -4708,7 +4722,7 @@ static void process_die_command(conn *c) {
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
 			sizeof s);
-	printf("process_die_command : client: connecting to %s\n", s);
+	fprintf(stderr,"process_die_command : client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
 
 	fprintf(stderr, "In process_die_command\n");

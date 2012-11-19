@@ -767,7 +767,7 @@ static void *(*static_joining_thread_routine)(void *) = NULL;
 static void *wrapper_routine_for_child(void *arg){
     uint8_t lock_type = ITEM_LOCK_GRANULAR;
     pthread_setspecific(item_lock_type_key, &lock_type);
-    (*static_joining_thread_routine)(NULL);
+    (*static_joining_thread_routine)(arg);
     pthread_exit(NULL);
     return 0;
 }
