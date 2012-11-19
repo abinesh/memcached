@@ -3628,8 +3628,6 @@ static void process_delete_command(conn *c, token_t *tokens,
 	info = (neighbour_info *) malloc(
 					sizeof(neighbour_info));
 
-
-
 	assert(c != NULL);
 
 	if (ntokens > 3) {
@@ -4417,39 +4415,6 @@ static void *join_request_listener_thread_routine(void * args) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-//ZoneBoundary client_boundary,my_new_boundary;
-	float x1, y1, x2, y2;
-
-	x1 = my_boundary.from.x;
-	x2 = my_boundary.to.x;
-	y1 = my_boundary.from.y;
-	y2 = my_boundary.to.y;
-
-	client_boundary.from.x = x1 + (x2 - x1) / 2;
-	client_boundary.from.y = y1;
-	client_boundary.to.x = x2;
-	client_boundary.to.y = y2;
-
-	my_new_boundary.from.x = x1;
-	my_new_boundary.from.y = y1;
-
-	my_new_boundary.to.x = x1 + (x2 - x1) / 2;
-	my_new_boundary.to.y = y2;
-
-	if (settings.verbose > 1) {
-		fprintf(stderr, "Client boundary");
-		print_boundaries(client_boundary);
-		fprintf(stderr, "My boundary");
-		print_boundaries(my_boundary);
-		fprintf(stderr, "My new boundary");
-		print_boundaries(my_new_boundary);
-	}
-
-	char client_boundary_str[1024];
-	char my_new_boundary_str[1024];
-	serialize_boundary(client_boundary, client_boundary_str);
-	serialize_boundary(my_new_boundary, my_new_boundary_str);
-
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return (void*) 1;
@@ -4533,6 +4498,38 @@ static void *join_request_listener_thread_routine(void * args) {
 */
 		mode = SPLITTING_PARENT_INIT;
         fprintf(stderr,"Mode changed: NORMAL_NODE -> SPLITTING_PARENT_INIT\n");
+
+        float x1, y1, x2, y2;
+
+        x1 = my_boundary.from.x;
+        x2 = my_boundary.to.x;
+        y1 = my_boundary.from.y;
+        y2 = my_boundary.to.y;
+
+        client_boundary.from.x = x1 + (x2 - x1) / 2;
+        client_boundary.from.y = y1;
+        client_boundary.to.x = x2;
+        client_boundary.to.y = y2;
+
+        my_new_boundary.from.x = x1;
+        my_new_boundary.from.y = y1;
+
+        my_new_boundary.to.x = x1 + (x2 - x1) / 2;
+        my_new_boundary.to.y = y2;
+
+        if (settings.verbose > 1) {
+            fprintf(stderr, "Client boundary");
+            print_boundaries(client_boundary);
+            fprintf(stderr, "My boundary");
+            print_boundaries(my_boundary);
+            fprintf(stderr, "My new boundary");
+            print_boundaries(my_new_boundary);
+        }
+
+        char client_boundary_str[1024];
+        char my_new_boundary_str[1024];
+        serialize_boundary(client_boundary, client_boundary_str);
+        serialize_boundary(my_new_boundary, my_new_boundary_str);
 
 
 		for(counter=0;counter<10;counter++)
