@@ -3297,15 +3297,30 @@ static void process_update_command(conn *c, token_t *tokens,
 		stats_prefix_record_set(key, nkey);
 	}
 
-	if (mode == SPLITTING_PARENT_MIGRATING || mode == MERGING_CHILD_MIGRATING) {
-		fprintf(stderr, "SIMULATING PUT IGNORE; STORING key in trash_both");
-		mylist_add(&trash_both, key);
-	}
+    if( mode == SPLITTING_PARENT_INIT ||
+        mode == SPLITTING_PARENT_MIGRATING ||
+        mode == SPLITTING_CHILD_INIT ||
+        mode == SPLITTING_CHILD_MIGRATING ||
+        mode == MERGING_PARENT_INIT ||
+        mode == MERGING_PARENT_MIGRATING ||
+        mode == MERGING_CHILD_INIT ||
+        mode == MERGING_CHILD_MIGRATING
+    )
+    {
+        Point resolved_point = key_point(key);
+        if(settings.verbose > 1)
+        fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
 
-	/*sprintf(command_to_transfer,"%s %d %d %d %d ",key,(int)nkey,flags,(int)exptime,vlen);*/
-	sprintf(key_to_transfer, "%s", key);
-	fprintf(stderr, "-------%d------", vlen);
-	it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
+        if(is_within_boundary(resolved_point,my_new_boundary)!=1){
+            fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
+            mylist_add(&trash_both,key);
+        }
+    }
+
+    /*sprintf(command_to_transfer,"%s %d %d %d %d ",key,(int)nkey,flags,(int)exptime,vlen);*/
+    sprintf(key_to_transfer,"%s",key);
+    fprintf(stderr,"-------%d------",vlen);
+    it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
 
 	if (it == 0) {
 		if (!item_size_ok(nkey, flags, vlen))
