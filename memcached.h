@@ -618,7 +618,17 @@ typedef struct tagPortNumbers{
     char request_propogation[10];
     char node_removal[10];
 
-}PortNumbers;
-PortNumbers me, neighbour;
+}neighbour_info;
+neighbour_info me, neighbour;
 
 pthread_mutex_t list_of_keys_lock ;
+pthread_mutex_t prop_mutex;
+pthread_cond_t prop_cv;
+
+typedef struct
+{
+void *(*function1)(void *);
+void *(*function2)(void *);
+} function_pointer;
+function_pointer *fp;
+//struct thread_param *tp;

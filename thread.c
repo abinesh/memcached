@@ -79,7 +79,6 @@ static int init_count = 0;
 static pthread_mutex_t init_lock;
 static pthread_cond_t init_cond;
 
-
 static void thread_libevent_process(int fd, short which, void *arg);
 
 unsigned short refcount_incr(unsigned short *refcount) {
@@ -777,6 +776,7 @@ static pthread_t connect_and_split_thread;
 static pthread_t join_request_listener_thread;
 static pthread_t node_removal_listener_thread;
 static pthread_t node_propagation_listener_thread;
+static pthread_t propagation_node_removal_thread;
 static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
@@ -789,14 +789,38 @@ static void start_listening_on_join_port(void *(*join_request_listener_thread_ro
 	pthread_create(&join_request_listener_thread, 0,wrapper_routine_for_child, NULL);
 }
 
+
 static void start_listening_on_node_removal_port(void *(*node_removal_listener_thread_routine)(void *)){
     static_joining_thread_routine = node_removal_listener_thread_routine;
 	pthread_create(&node_removal_listener_thread, 0,wrapper_routine_for_child, NULL);
 }
+
 static void start_listening_on_node_propagation_port(void *(*node_propagation_listener_thread_routine)(void *)){
     static_joining_thread_routine = node_propagation_listener_thread_routine;
 	pthread_create(&node_propagation_listener_thread, 0,wrapper_routine_for_child, NULL);
 
+}
+
+
+static void *start_routine(void *args){
+
+	function_pointer *fp = (function_pointer*)args;
+
+    pthread_mutex_lock(&prop_mutex);
+//    while(strcmp(neighbour.request_propogation,"0")){
+          pthread_cond_wait(&prop_cv, &prop_mutex);
+  //  }
+    usleep(1000);
+            start_listening_on_node_propagation_port(fp->function1);
+    usleep(1000);
+    	start_listening_on_node_removal_port(fp->function2);
+
+    pthread_mutex_unlock(&prop_mutex);
+
+
+
+    //pthread_exit(NULL);
+    return 0;
 }
 
 /*
@@ -817,6 +841,11 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
 
     pthread_mutex_init(&cqi_freelist_lock, NULL);
     cqi_freelist = NULL;
+
+    pthread_mutex_init(&prop_mutex, NULL);
+    pthread_cond_init (&prop_cv, NULL);
+
+
 
     /* Want a wide lock table, but don't waste memory */
     if (nthreads < 3) {
@@ -879,7 +908,9 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
 
 
     if(joining_thread_routine != NULL){
+
        connect_to_join_server(joining_thread_routine);
+       sprintf(neighbour.request_propogation,"%s","0");
     }
     else
     {
@@ -887,12 +918,14 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
         start_listening_on_join_port(join_request_listener_thread_routine);
 
     }
-    usleep(1000);
-            start_listening_on_node_propagation_port(node_propagation_thread_routine);
-    usleep(1000);
-    start_listening_on_node_removal_port(node_removal_listener_thread_routine);
 
-    pthread_join(connect_and_split_thread,NULL);
+    fp = (function_pointer*)malloc(sizeof(function_pointer));
+    fp->function1=node_propagation_thread_routine;
+    fp->function2=node_removal_listener_thread_routine;
+	pthread_create(&propagation_node_removal_thread, 0,start_routine,(void*)fp);
+
+	///we may want to comment this
+	pthread_join(connect_and_split_thread,NULL);
 
 }
 
