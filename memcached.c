@@ -4288,7 +4288,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 				ITEM_data(it), key_value_str);
 		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
 		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
-		usleep(1000);
+		usleep(1000000);
 		delete_key_locally(key);
 	}
 }
@@ -4374,6 +4374,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	pthread_key_t *item_lock_type_key = (pthread_key_t *)args;
 	char me_request_propogation[1024], me_node_removal[1024];
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
+    my_new_boundary = my_boundary;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -4462,10 +4463,10 @@ static void *join_request_listener_thread_routine(void * args) {
 
         float x1, y1, x2, y2;
 
-        x1 = my_boundary.from.x;
-        x2 = my_boundary.to.x;
-        y1 = my_boundary.from.y;
-        y2 = my_boundary.to.y;
+        x1 = my_new_boundary.from.x;
+        x2 = my_new_boundary.to.x;
+        y1 = my_new_boundary.from.y;
+        y2 = my_new_boundary.to.y;
 
         client_boundary.from.x = x1 + (x2 - x1) / 2;
         client_boundary.from.y = y1;
