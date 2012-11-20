@@ -6725,6 +6725,11 @@ if (is_new_joining_node == 0) {
 } else {
     mode = SPLITTING_CHILD_INIT;
     fprintf(stderr, "Mode set as : SPLITTING_CHILD_INIT\n");
+    for(i =0 ;i < 10 ;i++)
+    {
+        strcpy(neighbour[i].node_removal,"NULL");
+        strcpy(neighbour[i].request_propogation,"NULL");
+    }
 	thread_init(settings.num_threads, main_base, NULL,
 			connect_and_split_thread_routine,
 			node_removal_listener_thread_routine,
