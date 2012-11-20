@@ -619,8 +619,8 @@ typedef struct tagPortNumbers{
     char request_propogation[10];
     char node_removal[10];
 
-}neighbour_info;
-neighbour_info me, neighbour[10];
+}node_info;
+node_info me, neighbour[10];
 
 pthread_mutex_t list_of_keys_lock ;
 pthread_mutex_t prop_mutex;

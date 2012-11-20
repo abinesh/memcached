@@ -2846,7 +2846,7 @@ static void *get_in_addr(struct sockaddr *sa) {
 	return &(((struct sockaddr_in6*) sa)->sin6_addr);
 }
 
-static char *request_neighbour(char *key, char *buf, char *type,neighbour_info *neighbour) {
+static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour) {
 	int sockfd;
 	int MAXDATASIZE = 1024;
 	//char buf[MAXDATASIZE];
@@ -2924,7 +2924,7 @@ static void deserialize_key_value_str2(char *key, char *flag1, int *flag2,
 }
 
 
-static void get_neighbour_information(char *key,neighbour_info *info)
+static void get_neighbour_information(char *key,node_info *info)
 {
 	int counter;
 	ZoneBoundary bounds;
@@ -2965,9 +2965,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 	char *ptr_to_length;
 	char *ptr_to_flag;
 	it = NULL;
-	neighbour_info *info;
-	info = (neighbour_info *) malloc(
-				sizeof(neighbour_info));
+	node_info *info;
+	info = (node_info *) malloc(
+				sizeof(node_info));
 
 	do {
 		while (key_token->length != 0) {
@@ -3544,9 +3544,9 @@ static void process_delete_command(conn *c, token_t *tokens,
 	char *key;
 	size_t nkey;
 	char buf[1024];
-	neighbour_info *info;
-	info = (neighbour_info *) malloc(
-					sizeof(neighbour_info));
+	node_info *info;
+	info = (node_info *) malloc(
+					sizeof(node_info));
 
 	assert(c != NULL);
 
@@ -4577,7 +4577,7 @@ static void calculate_area(ZoneBoundary bounds,float *area)
 }
 
 
-static void find_neighbour(neighbour_info found_neighbour)
+static void find_neighbour(node_info found_neighbour)
 {
 	int counter;
 	float area;
@@ -4600,7 +4600,7 @@ static void process_die_command(conn *c) {
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	my_list keys_to_send;
-	neighbour_info found_neighbour;
+	node_info found_neighbour;
 
 	out_string(c,
 			"Die command received, initiating to move all keys to a neighbour\n");
@@ -5240,9 +5240,9 @@ char to_transfer[1024];
 char buf[1024];
 // char *ptr;
 //item *it;
-neighbour_info *info;
-info = (neighbour_info *) malloc(
-				sizeof(neighbour_info));
+node_info *info;
+info = (node_info *) malloc(
+				sizeof(node_info));
 
 assert(c != NULL);
 
