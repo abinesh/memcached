@@ -910,7 +910,7 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
     if(joining_thread_routine != NULL){
 
        connect_to_join_server(joining_thread_routine);
-       sprintf(neighbour.request_propogation,"%s","0");
+      // sprintf(neighbour.request_propogation,"%s","0");
     }
     else
     {

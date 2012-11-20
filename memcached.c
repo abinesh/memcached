@@ -22,6 +22,8 @@
 #include <sys/uio.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <math.h>
+
 
 /* some POSIX systems need the following definition
  * to get mlockall flags out of sys/mman.h.  */
@@ -2844,7 +2846,7 @@ static void *get_in_addr(struct sockaddr *sa) {
 	return &(((struct sockaddr_in6*) sa)->sin6_addr);
 }
 
-static char *request_neighbour(char *key, char *buf, char *type) {
+static char *request_neighbour(char *key, char *buf, char *type,neighbour_info *neighbour) {
 	int sockfd;
 	int MAXDATASIZE = 1024;
 	//char buf[MAXDATASIZE];
@@ -2856,8 +2858,8 @@ static char *request_neighbour(char *key, char *buf, char *type) {
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	fprintf(stderr, "------------------%s--------------",
-			neighbour.request_propogation);
-	if ((rv = getaddrinfo("localhost", neighbour.request_propogation, &hints,
+			neighbour->request_propogation);
+	if ((rv = getaddrinfo("localhost", neighbour->request_propogation, &hints,
 			&servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return (void*) 1;
@@ -3000,6 +3002,31 @@ static void deserialize_key_value_str2(char *key, char *flag1, int *flag2,
 	sscanf(key_value_str, "%s %s %d %s %s", key, flag1, flag2, flag3, value);
 }
 
+
+static void get_neighbour_information(char *key,neighbour_info *info)
+{
+	int counter;
+	ZoneBoundary bounds;
+	Point resolved_point = key_point(key);
+	for(counter=0;counter<10;counter++)
+	{
+		bounds=neighbour[counter].boundary;
+		if(is_within_boundary(resolved_point,bounds)==1)
+		{
+			fprintf(stderr,"\n------np value:%s-------------\n",neighbour[counter].request_propogation);
+			strcpy(info->request_propogation,neighbour[counter].request_propogation);
+			strcpy(info->node_removal,neighbour[counter].node_removal);
+			break;
+		}
+		else
+		{
+			continue;
+		}
+	}
+
+}
+
+
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 		bool return_cas) {
@@ -3017,6 +3044,10 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 	char *ptr_to_length;
 	char *ptr_to_flag;
 	it = NULL;
+	neighbour_info *info;
+	info = (neighbour_info *) malloc(
+				sizeof(neighbour_info));
+
 	do {
 		while (key_token->length != 0) {
 
@@ -3038,7 +3069,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 }
                 else{
                     fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
-                    request_neighbour(key,buf,"get");
+
+                    get_neighbour_information(key,info);
+                    request_neighbour(key,buf,"get",info);
                     printf("buf is : %s",buf);
                     if(strcmp(buf,"NOT FOUND"))
                     {
@@ -3086,7 +3119,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         it= item_get(key,nkey);
                         if(it==NULL)
                         {
-							request_neighbour(key,buf,"get");
+                            get_neighbour_information(key,info);
+                            fprintf(stderr,"\n-------info-%s-\n",info->request_propogation);
+							request_neighbour(key,buf,"get",info);
 							printf("buf is : %s",buf);
 							if(strcmp(buf,"NOT FOUND"))
 							{
@@ -3589,6 +3624,11 @@ static void process_delete_command(conn *c, token_t *tokens,
 	char *key;
 	size_t nkey;
 	char buf[1024];
+	neighbour_info *info;
+	info = (neighbour_info *) malloc(
+					sizeof(neighbour_info));
+
+
 
 	assert(c != NULL);
 
@@ -3619,7 +3659,8 @@ static void process_delete_command(conn *c, token_t *tokens,
         }
         else{
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
-            request_neighbour(key,buf,"delete");
+            get_neighbour_information(key,info);
+            request_neighbour(key,buf,"delete",info);
             out_string(c, "DELETED");
         }
     }
@@ -3799,11 +3840,19 @@ static void serialize_port_numbers(char *me_request_propogation,
 	sprintf(s, " %s %s %s %s ", me_request_propogation, me_node_removal,
 			neighbour_request_propogation, neighbour_node_removal);
 }
-static void deserialize_port_numbers(char *s, neighbour_info *me,
-		neighbour_info *neighbour) {
-	sscanf(s, " %s %s %s %s ", neighbour->request_propogation,
-			neighbour->node_removal, me->request_propogation,
+/*static void deserialize_port_numbers(char *s, neighbour_info *me) {
+	char * temp1=NULL,*temp2=NULL;
+	sscanf(s, " %s %s %s %s ",temp1,temp2, me->request_propogation,
 			me->node_removal);
+}*/
+
+static void deserialize_port_numbers2(char *s,char *neighbour_request_propogation,
+		char *neighbour_node_removal,char *me_request_propogation,
+		char *me_node_removal)
+{
+	sscanf(s, " %s %s %s %s ", neighbour_request_propogation,
+				neighbour_node_removal, me_request_propogation,
+				me_node_removal);
 }
 
 static void *connect_and_split_thread_routine(void *args) {
@@ -3813,6 +3862,12 @@ static void *connect_and_split_thread_routine(void *args) {
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
+	int counter;
+
+	char neighbour_request_propogation[1024],
+    neighbour_node_removal[1024], me_request_propogation[1024],
+    me_node_removal[1024];
+
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -3850,6 +3905,7 @@ static void *connect_and_split_thread_routine(void *args) {
 	printf("connect_and_split_thread_routine : client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
 
+	//receiving self boundary
 	memset(buf, '\0', 1024);
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
 		perror("recv");
@@ -3862,7 +3918,7 @@ static void *connect_and_split_thread_routine(void *args) {
 
 	print_boundaries(me.boundary);
 
-
+////receiving neighbours boundary
 	memset(buf, '\0', 1024);
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
 			perror("recv");
@@ -3870,22 +3926,47 @@ static void *connect_and_split_thread_routine(void *args) {
 		}
 
 		deserialize_boundary(buf, &neighbour_boundary);
-		neighbour.boundary=neighbour_boundary;
+
+		//neighbour.boundary=neighbour_boundary;
 		fprintf(stderr, "client received neighbours boundary\n");
-		print_boundaries(neighbour.boundary);
+		//print_boundaries(neighbour.boundary);
 
 
-	/////////
+	/////////receiving portnumbers
     memset(buf, '\0', 1024);
         if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
             perror("recv");
             exit(1);
         }
-        deserialize_port_numbers(buf,&me, &neighbour);
-        fprintf(stderr, "\n Got port numbers: %s %s %s %s ", neighbour.request_propogation,
-                    neighbour.node_removal, me.request_propogation,
+        //deserialize_port_numbers(buf,&me);
+        deserialize_port_numbers2(buf,neighbour_request_propogation,
+                neighbour_node_removal, me_request_propogation,
+                me_node_removal);
+        strcpy(me.request_propogation,me_request_propogation);
+        strcpy(me.node_removal,me_node_removal);
+        fprintf(stderr, "\n Got port numbers: %s %s %s %s ", neighbour_request_propogation,
+                    neighbour_node_removal, me.request_propogation,
                     me.node_removal);
     ///////////
+
+
+
+		for(counter=0;counter<10;counter++)
+		{
+			fprintf(stderr,"\n--->neighbour[counter].node_removal:%s",neighbour[counter].node_removal);
+			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
+			{
+				neighbour[counter].boundary=neighbour_boundary;
+				sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
+				fprintf(stderr,"\n------------------come on %s------------\n",neighbour_request_propogation);
+				sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
+				print_boundaries(neighbour[counter].boundary);
+				break;
+			}
+			else
+				continue;
+		}
+
 
     
     pthread_mutex_lock(&prop_mutex);
@@ -4027,9 +4108,9 @@ static void *node_propagation_thread_routine(void *args){
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
-	fprintf(stderr, " ---------------------------------------------%s %s %s %s ", neighbour.request_propogation,
-						neighbour.node_removal, me.request_propogation,
-						me.node_removal);
+	//fprintf(stderr, " ---------------------------------------------%s %s %s %s ", neighbour.request_propogation,
+		//				neighbour.node_removal, me.request_propogation,
+			//			me.node_removal);
 	fprintf(stderr,"------%s-----",me.request_propogation);
 	if ((rv = getaddrinfo(NULL, me.request_propogation, &hints, &servinfo))
 			!= 0) {
@@ -4326,6 +4407,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	int yes = 1;
 	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
+	int counter;
 
 	char me_request_propogation[1024], me_node_removal[1024];
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
@@ -4438,16 +4520,33 @@ static void *join_request_listener_thread_routine(void * args) {
 				"join_request_listener_thread_routine : server: got connection from %s\n",
 				s);
 
-		sprintf(neighbour.request_propogation, "11313");
-		sprintf(neighbour.node_removal, "11315");
-		neighbour.boundary=client_boundary;
 
-        pthread_mutex_lock(&prop_mutex);
+
+
+		/*sprintf(neighbour.request_propogation, "11313");
+		sprintf(neighbour.node_removal, "11315");*/
+		//neighbour.boundary=client_boundary;
+
+        /*pthread_mutex_lock(&prop_mutex);
         pthread_cond_signal(&prop_cv);
         pthread_mutex_unlock(&prop_mutex);
-
+*/
 		mode = SPLITTING_PARENT_INIT;
         fprintf(stderr,"Mode changed: NORMAL_NODE -> SPLITTING_PARENT_INIT\n");
+
+
+		for(counter=0;counter<10;counter++)
+		{
+			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
+			{
+				neighbour[counter].boundary=client_boundary;
+				sprintf(neighbour[counter].node_removal,"11315");
+				sprintf(neighbour[counter].request_propogation,"11313");
+			}
+			else
+				continue;
+		}
+
 
         mylist_init(&trash_both);
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
@@ -4465,6 +4564,7 @@ static void *join_request_listener_thread_routine(void * args) {
 		sprintf(neighbour_request_propogation, "11313");
 		sprintf(neighbour_node_removal, "11315");
 
+
 		serialize_port_numbers(me_request_propogation, me_node_removal,
 				neighbour_request_propogation, neighbour_node_removal,buf);
 
@@ -4474,7 +4574,13 @@ static void *join_request_listener_thread_routine(void * args) {
 		if (send(new_fd, buf, strlen(buf), 0)
 				== -1)
 			perror("send");
-////
+
+		pthread_mutex_lock(&prop_mutex);
+		pthread_cond_signal(&prop_cv);
+		pthread_mutex_unlock(&prop_mutex);
+
+
+
 
         mode = SPLITTING_PARENT_MIGRATING;
         fprintf(stderr,"Mode changed: SPLITTING_PARENT_INIT -> SPLITTING_PARENT_MIGRATING\n");
@@ -4510,20 +4616,68 @@ static void _send_my_boundary_to(int another_node_fd) {
 	send(another_node_fd, buf, strlen(buf), 0);
 }
 
+
+static void calculate_area(ZoneBoundary bounds,float *area)
+{
+	Point from,to;
+	from.x=bounds.from.x;
+	from.y=bounds.from.y;
+	to.x=bounds.to.x;
+	to.y=bounds.to.y;
+	float sum1,sum2;
+	float multiply;
+
+	/*sum1=pow((from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x),0.5);
+
+	sum2=pow((from.x-to.x)*(from.x-to.x) +(from.y-to.y)*(from.y-to.y),0.5);
+*/
+
+	sum1=(from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x);
+
+	sum2=(from.x-to.x)*(from.x-to.x) +(from.y-to.y)*(from.y-to.y);
+
+	multiply=sum1*sum2;
+	area = &(multiply);
+}
+
+
+static void find_neighbour(neighbour_info found_neighbour)
+{
+	int counter;
+	float area;
+	//float min;
+	ZoneBoundary bounds;
+	for(counter=0;counter<10;counter++)
+		{
+			bounds=neighbour[counter].boundary;
+			calculate_area(bounds,&area);
+			found_neighbour= neighbour[counter];
+		}
+
+
+
+}
+
 static void process_die_command(conn *c) {
 	int sockfd, i;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	my_list keys_to_send;
+	neighbour_info found_neighbour;
 
 	out_string(c,
 			"Die command received, initiating to move all keys to a neighbour\n");
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	fprintf(stderr,"neighbour.node_removal=%s\n",neighbour.node_removal);
-	if ((rv = getaddrinfo(join_server_ip_address, neighbour.node_removal,
+
+
+	find_neighbour(found_neighbour);
+
+
+	fprintf(stderr,"neighbour.node_removal=%s\n",found_neighbour.node_removal);
+	if ((rv = getaddrinfo(join_server_ip_address, found_neighbour.node_removal,
 			&hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return;
@@ -5150,6 +5304,9 @@ char to_transfer[1024];
 char buf[1024];
 // char *ptr;
 //item *it;
+neighbour_info *info;
+info = (neighbour_info *) malloc(
+				sizeof(neighbour_info));
 
 assert(c != NULL);
 
@@ -5300,7 +5457,8 @@ while (!stop) {
 			if (is_within_boundary(resolved_point, my_boundary) != 1) {
 				sprintf(to_transfer, "%s %s", command_to_transfer, c->ritem -=
 						res);
-				request_neighbour(to_transfer, buf, "set");
+				get_neighbour_information(key_to_transfer,info);
+				request_neighbour(to_transfer, buf, "set",info);
 				pthread_mutex_lock(&list_of_keys_lock);
 				mylist_delete(&list_of_keys, key_to_transfer);
 				pthread_mutex_unlock(&list_of_keys_lock);
@@ -6125,7 +6283,7 @@ return true;
 }
 
 int main(int argc, char **argv) {
-int c;
+int c,i;
 bool lock_memory = false;
 bool do_daemonize = false;
 bool preallocate = false;
@@ -6620,6 +6778,12 @@ if (is_new_joining_node == 0) {
 	/*sprintf(neighbour.request_propogation, "11313");
 	sprintf(neighbour.node_removal, "11315");*/
 
+	for(i =0 ;i < 10 ;i++)
+	{
+		strcpy(neighbour[i].node_removal,"NULL");
+		strcpy(neighbour[i].request_propogation,"NULL");
+	}
+
 	thread_init(settings.num_threads, main_base,
 			join_request_listener_thread_routine, NULL,
 			node_removal_listener_thread_routine,
@@ -6632,6 +6796,13 @@ if (is_new_joining_node == 0) {
 	 sprintf(me.node_removal ,"11315");
 	 sprintf(neighbour.request_propogation, "11312");
 	 sprintf(neighbour.node_removal, "11314");*/
+
+
+	for(i =0 ;i < 10 ;i++)
+	{
+		strcpy(neighbour[i].node_removal,"NULL");
+		strcpy(neighbour[i].request_propogation,"NULL");
+	}
 	thread_init(settings.num_threads, main_base, NULL,
 			connect_and_split_thread_routine,
 			node_removal_listener_thread_routine,
