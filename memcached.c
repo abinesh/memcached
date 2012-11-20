@@ -3865,18 +3865,15 @@ static void *connect_and_split_thread_routine(void *args) {
         fprintf(stderr, "\n Got port numbers: %s %s %s %s ", neighbour_request_propogation,
                     neighbour_node_removal, me.request_propogation,
                     me.node_removal);
-    ///////////
 
 
 
 		for(counter=0;counter<10;counter++)
 		{
-			fprintf(stderr,"\n--->neighbour[counter].node_removal:%s",neighbour[counter].node_removal);
 			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
 			{
 				neighbour[counter].boundary=neighbour_boundary;
 				sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
-				fprintf(stderr,"\n------------------come on %s------------\n",neighbour_request_propogation);
 				sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
 				print_boundaries(neighbour[counter].boundary);
 				break;
@@ -4554,43 +4551,55 @@ static void _send_my_boundary_to(int another_node_fd) {
 }
 
 
-static void calculate_area(ZoneBoundary bounds,float *area)
+static float calculate_area(ZoneBoundary bounds)
 {
 	Point from,to;
 	from.x=bounds.from.x;
 	from.y=bounds.from.y;
 	to.x=bounds.to.x;
 	to.y=bounds.to.y;
-	float sum1,sum2;
-	float multiply;
+	//float sum1,sum2;
+	//float multiply;
+	float area;
 
 	/*sum1=pow((from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x),0.5);
 
 	sum2=pow((from.x-to.x)*(from.x-to.x) +(from.y-to.y)*(from.y-to.y),0.5);
 */
 
-	sum1=(from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x);
+	fprintf(stderr,"\npoints::%f,%f,%f,%f\n",to.x,from.x,to.y,from.y);
+	area= (to.x - from.x)* (to.y-from.y);
+	fprintf(stderr,"%f",(to.x - from.x)*(to.y-from.y));
+
+	/*sum1=(from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x);
 
 	sum2=(from.x-to.x)*(from.x-to.x) +(from.y-to.y)*(from.y-to.y);
-
-	multiply=sum1*sum2;
-	area = &(multiply);
+*/
+//	multiply=sum1*sum2;
+	return area;
 }
 
 
-static void find_neighbour(node_info found_neighbour)
+static void find_neighbour(node_info *found_neighbour)
 {
 	int counter;
 	float area;
-	//float min;
+	float min=999999;
+	int final_counter=0;
 	ZoneBoundary bounds;
 	for(counter=0;counter<10;counter++)
 		{
 			bounds=neighbour[counter].boundary;
-			calculate_area(bounds,&area);
-			found_neighbour= neighbour[counter];
+			area=calculate_area(bounds);
+			if(min>area&&area!=0)
+			{
+				min=area;
+				final_counter=counter;
+			}
+
 		}
 
+	strcpy(found_neighbour->node_removal, neighbour[final_counter].node_removal);
 
 
 }
@@ -4601,7 +4610,9 @@ static void process_die_command(conn *c) {
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	my_list keys_to_send;
-	node_info found_neighbour;
+	node_info *found_neighbour;
+
+	found_neighbour = (node_info*) malloc(sizeof(node_info));
 
 	out_string(c,
 			"Die command received, initiating to move all keys to a neighbour\n");
@@ -4613,8 +4624,8 @@ static void process_die_command(conn *c) {
 	find_neighbour(found_neighbour);
 
 
-	fprintf(stderr,"neighbour.node_removal=%s\n",found_neighbour.node_removal);
-	if ((rv = getaddrinfo(join_server_ip_address, found_neighbour.node_removal,
+	fprintf(stderr,"\nneighbour.node_removal=%s\n",found_neighbour->node_removal);
+	if ((rv = getaddrinfo(join_server_ip_address, found_neighbour->node_removal,
 			&hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return;
@@ -6728,7 +6739,7 @@ if (is_new_joining_node == 0) {
     fprintf(stderr, "Mode set as : SPLITTING_CHILD_INIT\n");
     for(i =0 ;i < 10 ;i++)
     {
-        strcpy(neighbour[i].node_removal,"NULL");
+         strcpy(neighbour[i].node_removal,"NULL");
         strcpy(neighbour[i].request_propogation,"NULL");
     }
 	thread_init(settings.num_threads, main_base, NULL,
