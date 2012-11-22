@@ -38,12 +38,15 @@ def get_key(node, key, expected_value, expected_flag=0):
 def set_key(node, key, flag, exptime, value):
     node.write("set %s %d %d %d" % (key, flag, exptime, len(value)) + "\n")
     node.write(value + "\r\n")
-    node.read_until("STORED")
+    node.read_until("STORED\r\n")
 
 print "Make sure a memcached node is running on 11211\n"
 
-delete_key(node11211, "key1")
-set_key(node11211, "key1", 0, 500, "abcde")
-get_key(node11211, "key1", "abcde")
+def insert_keys(node, count, flag=0, exptime=500, value="abcde"):
+    for i in range(count + 1):
+        key = "key%d" % i
+        delete_key(node, key)
+        set_key(node, key, flag, exptime, value)
 
+insert_keys(node11211, 50)
 
