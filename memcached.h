@@ -618,6 +618,8 @@ typedef struct tagPortNumbers{
 	ZoneBoundary boundary;
     char request_propogation[10];
     char node_removal[10];
+    int sock_desc_request_propogation;
+    int sock_desc_node_removal;
 
 }node_info;
 node_info me, neighbour[10];
