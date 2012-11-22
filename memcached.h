@@ -605,7 +605,7 @@ typedef struct tagZoneBoundary {
 ZoneBoundary my_boundary,world_boundary,client_boundary, my_new_boundary,neighbour_boundary;
 //pthread_t join_request_listener_thread;
 
-#define PORT "11311" // the port users will be connecting to
+#define JOIN_REQUEST_LISTENING_PORT "11311" // the port users will be connecting to
 #define BACKLOG 10 // how many pending connections queue will hold
 
 
@@ -625,6 +625,8 @@ node_info me, neighbour[10];
 pthread_mutex_t list_of_keys_lock ;
 pthread_mutex_t prop_mutex;
 pthread_cond_t prop_cv;
+pthread_t join_request_listening_thread;
+
 
 typedef struct
 {

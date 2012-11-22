@@ -780,7 +780,7 @@ static pthread_t propagation_node_removal_thread;
 static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
-	pthread_create(&connect_and_split_thread, 0,wrapper_routine_for_child,NULL);
+	pthread_create(&connect_and_split_thread, 0,wrapper_routine_for_child,&item_lock_type_key);
 	//pthread_join(connect_and_split_thread,NULL);
 }
 

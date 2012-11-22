@@ -3772,139 +3772,6 @@ static void deserialize_port_numbers2(char *s,char *neighbour_request_propogatio
 				neighbour_node_removal, me_request_propogation,
 				me_node_removal);
 }
-
-static void *connect_and_split_thread_routine(void *args) {
-	int sockfd, numbytes;
-	int MAXDATASIZE = 1024;
-	char buf[MAXDATASIZE];
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
-	int counter;
-
-	char neighbour_request_propogation[1024],
-    neighbour_node_removal[1024], me_request_propogation[1024],
-    me_node_removal[1024];
-
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	if ((rv = getaddrinfo(join_server_ip_address, join_server_port_number,
-			&hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return (void*) 1;
-	}
-
-	for (p = servinfo; p != NULL ; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			perror("connect_and_split_thread_routine : client: socket");
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("connect_and_split_thread_routine : client: connect");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL ) {
-		fprintf(stderr,
-				"connect_and_split_thread_routine : client: failed to connect\n");
-		return (void*) 2;
-	}
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
-			sizeof s);
-	fprintf(stderr,"connect_and_split_thread_routine : client: connecting to %s\n", s);
-	freeaddrinfo(servinfo); // all done with this structure
-
-	//receiving self boundary
-	memset(buf, '\0', 1024);
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
-
-	deserialize_boundary(buf, &my_boundary);
-	me.boundary=my_boundary;
-	fprintf(stderr, "client's boundary assigned by server\n");
-
-	print_boundaries(me.boundary);
-
-////receiving neighbours boundary
-	memset(buf, '\0', 1024);
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
-
-		deserialize_boundary(buf, &neighbour_boundary);
-
-		//neighbour.boundary=neighbour_boundary;
-		fprintf(stderr, "client received neighbours boundary\n");
-		//print_boundaries(neighbour.boundary);
-
-
-	/////////receiving portnumbers
-    memset(buf, '\0', 1024);
-        if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
-            perror("recv");
-            exit(1);
-        }
-        //deserialize_port_numbers(buf,&me);
-        deserialize_port_numbers2(buf,neighbour_request_propogation,
-                neighbour_node_removal, me_request_propogation,
-                me_node_removal);
-        strcpy(me.request_propogation,me_request_propogation);
-        strcpy(me.node_removal,me_node_removal);
-        fprintf(stderr, "\n Got port numbers: %s %s %s %s ", neighbour_request_propogation,
-                    neighbour_node_removal, me.request_propogation,
-                    me.node_removal);
-
-
-
-		for(counter=0;counter<10;counter++)
-		{
-			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
-			{
-				neighbour[counter].boundary=neighbour_boundary;
-				sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
-				sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
-				print_boundaries(neighbour[counter].boundary);
-				break;
-			}
-			else
-				continue;
-		}
-
-
-    
-    pthread_mutex_lock(&prop_mutex);
-    pthread_cond_signal(&prop_cv);
-    pthread_mutex_unlock(&prop_mutex);
-
-    mode = SPLITTING_CHILD_MIGRATING;
-    fprintf(stderr,"Mode changed: SPLITTING_CHILD_INIT -> SPLITTING_CHILD_MIGRATING\n");
-
-   _receive_keys_and_trash_keys(sockfd);
-    close(sockfd);
-
-    mode = NORMAL_NODE;
-    fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
-
-	return 0;
-}
-
-static void sigchld_handler(int s) {
-	while (waitpid(-1, NULL, WNOHANG) > 0)
-		;
-}
-
 static void print_all_boundaries() {
 	if (settings.verbose > 1) {
 		fprintf(stderr, "Current boundaries:\n");
@@ -3914,6 +3781,97 @@ static void print_all_boundaries() {
 		fprintf(stderr, "My boundary:");
 		print_boundaries(my_boundary);
 	}
+}
+static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
+	int i = 0;
+	char *ptr, buf[1024], key_value_str[1024];
+
+	fprintf(stderr, "The list of keys to be sent:\n");
+	mylist_print(&keys_to_send);
+
+	sprintf(buf, "%d", keys_to_send.size);
+	if (send(another_node_fd, buf, strlen(buf), 0) == -1)
+		perror("send");
+
+	for (i = 0; i < keys_to_send.size; i++) {
+		char *key = keys_to_send.array[i];
+		item *it = item_get(key, strlen(key));
+		ptr = strtok(ITEM_suffix(it), " ");
+		fprintf(stderr, "nbytes---%d", it->nbytes);
+		serialize_key_value_str(key, ptr, it->exptime, it->nbytes,
+				ITEM_data(it), key_value_str);
+		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
+		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
+		delete_key_locally(key);
+		usleep(1000000);
+	}
+}
+
+static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
+	int i = 0;
+	char buf[1024];
+	fprintf(stderr,
+			"number of keys to send for deleting is %d\nThe list of keys to be sent for deleting is:\n",
+			trash_both.size);
+	mylist_print(&trash_both);
+
+	sprintf(buf, "%d", trash_both.size);
+	send(child_node_fd, buf, strlen(buf), 0);
+	usleep(1000);
+	for (i = 0; i < trash_both.size; i++) {
+		char *key = trash_both.array[i];
+		delete_key_locally(key);
+		delete_key_on_child(child_node_fd, key);
+	}
+}
+
+
+static void* _parent_split_migrate_phase(void *arg){
+    int i=0;
+    my_list keys_to_send;
+    int child_fd = *((int*)(arg));
+
+    mode = SPLITTING_PARENT_MIGRATING;
+    fprintf(stderr,"Mode changed: SPLITTING_PARENT_INIT -> SPLITTING_PARENT_MIGRATING\n");
+
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_init(&keys_to_send);
+    for (i = 0; i < list_of_keys.size; i++) {
+        char *key = list_of_keys.array[i];
+        Point resolved_point = key_point(key);
+        if (is_within_boundary(resolved_point, client_boundary) == 1)
+            mylist_add(&keys_to_send, key);
+    }
+    pthread_mutex_unlock(&list_of_keys_lock);
+
+    fprintf(stderr, "Migrating keys:\n");
+    _migrate_key_values(child_fd, keys_to_send);
+
+    fprintf(stderr, "Trashing keys in parent and child:\n");
+    _trash_keys_in_both_nodes(child_fd, trash_both);
+
+    close(child_fd); // parent doesn't need this
+    my_boundary = my_new_boundary;
+    print_all_boundaries();
+    mode = NORMAL_NODE;
+    fprintf(stderr,"Mode changed: SPLITTING_PARENT_MIGRATING -> NORMAL_NODE\n");
+    return 0;
+}
+
+typedef struct tagSplitMigrateKeysArgs{
+    int child_fd;
+    pthread_key_t item_lock_type_key;
+} split_migrate_key_args;
+
+static void* split_migrate_keys_routine(void *tagArgs){
+    split_migrate_key_args *args = tagArgs;
+    uint8_t lock_type = ITEM_LOCK_GRANULAR;
+    pthread_setspecific(args->item_lock_type_key, &lock_type);
+    _parent_split_migrate_phase(&args->child_fd);
+    return 0;
+}
+static void sigchld_handler(int s) {
+	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 static void getting_key_from_neighbour(char *key, int sock_fd) {
@@ -4252,7 +4210,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             ZoneBoundary *my_new_boundary = _merge_boundaries(&my_boundary,child_boundary);
 
             mode = MERGING_PARENT_MIGRATING;
-            fprintf(stderr,"Mode changed: MERGING_PARENT_MIGRATING -> MERGING_PARENT_MIGRATING\n");
+            fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
             _receive_keys_and_trash_keys(new_fd);
             my_boundary = *my_new_boundary;
@@ -4265,95 +4223,7 @@ static void *node_removal_listener_thread_routine(void *args) {
         }
 }
 
-static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
-	int i = 0;
-	char *ptr, buf[1024], key_value_str[1024];
 
-	fprintf(stderr, "The list of keys to be sent:\n");
-	mylist_print(&keys_to_send);
-
-	sprintf(buf, "%d", keys_to_send.size);
-	if (send(another_node_fd, buf, strlen(buf), 0) == -1)
-		perror("send");
-
-	for (i = 0; i < keys_to_send.size; i++) {
-		char *key = keys_to_send.array[i];
-		item *it = item_get(key, strlen(key));
-		ptr = strtok(ITEM_suffix(it), " ");
-		fprintf(stderr, "nbytes---%d", it->nbytes);
-		serialize_key_value_str(key, ptr, it->exptime, it->nbytes,
-				ITEM_data(it), key_value_str);
-		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
-		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
-		usleep(1000000);
-		delete_key_locally(key);
-	}
-}
-
-static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
-	int i = 0;
-	char buf[1024];
-	fprintf(stderr,
-			"number of keys to send for deleting is %d\nThe list of keys to be sent for deleting is:\n",
-			trash_both.size);
-	mylist_print(&trash_both);
-
-	sprintf(buf, "%d", trash_both.size);
-	send(child_node_fd, buf, strlen(buf), 0);
-	usleep(1000);
-	for (i = 0; i < trash_both.size; i++) {
-		char *key = trash_both.array[i];
-		delete_key_locally(key);
-		delete_key_on_child(child_node_fd, key);
-	}
-}
-
-
-
-static void* _parent_split_migrate_phase(void *arg){
-    int i=0;
-    my_list keys_to_send;
-    int child_fd = *((int*)(arg));
-
-    mode = SPLITTING_PARENT_MIGRATING;
-    fprintf(stderr,"Mode changed: SPLITTING_PARENT_INIT -> SPLITTING_PARENT_MIGRATING\n");
-
-    pthread_mutex_lock(&list_of_keys_lock);
-    mylist_init(&keys_to_send);
-    for (i = 0; i < list_of_keys.size; i++) {
-        char *key = list_of_keys.array[i];
-        Point resolved_point = key_point(key);
-        if (is_within_boundary(resolved_point, client_boundary) == 1)
-            mylist_add(&keys_to_send, key);
-    }
-    pthread_mutex_unlock(&list_of_keys_lock);
-
-    fprintf(stderr, "Migrating keys:\n");
-    _migrate_key_values(child_fd, keys_to_send);
-
-    fprintf(stderr, "Trashing keys in parent and child:\n");
-    _trash_keys_in_both_nodes(child_fd, trash_both);
-
-    close(child_fd); // parent doesn't need this
-    my_boundary = my_new_boundary;
-    print_all_boundaries();
-    mode = NORMAL_NODE;
-    fprintf(stderr,"Mode changed: SPLITTING_PARENT_MIGRATING -> NORMAL_NODE\n");
-    return 0;
-}
-
-typedef struct tagSplitMigrateKeysArgs{
-    int child_fd;
-    pthread_key_t item_lock_type_key;
-} split_migrate_key_args;
-
-static void* split_migrate_keys_routine(void *tagArgs){
-    split_migrate_key_args *args = tagArgs;
-    uint8_t lock_type = ITEM_LOCK_GRANULAR;
-    pthread_setspecific(args->item_lock_type_key, &lock_type);
-    _parent_split_migrate_phase(&args->child_fd);
-    return 0;
-}
 
 static void *join_request_listener_thread_routine(void * args) {
 	if (settings.verbose > 1)
@@ -4368,7 +4238,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	char s[INET6_ADDRSTRLEN],buf[1024];
 	int rv;
     int counter;
-	pthread_key_t *item_lock_type_key = (pthread_key_t *)args;
+	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
 	char me_request_propogation[1024], me_node_removal[1024];
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
     my_new_boundary = my_boundary;
@@ -4378,7 +4248,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(NULL, JOIN_REQUEST_LISTENING_PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return (void*) 1;
 	}
@@ -4535,6 +4405,7 @@ static void *join_request_listener_thread_routine(void * args) {
         pthread_cond_signal(&prop_cv);
         pthread_mutex_unlock(&prop_mutex);
 
+        usleep(2000);
         pthread_t split_migrate_keys_thread;
         split_migrate_key_args args;
         args.child_fd = new_fd;
@@ -4543,6 +4414,139 @@ static void *join_request_listener_thread_routine(void * args) {
 	}
 	return 0;
 }
+
+
+static void *connect_and_split_thread_routine(void *args) {
+	int sockfd, numbytes;
+	int MAXDATASIZE = 1024;
+	char buf[MAXDATASIZE];
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+	int counter;
+
+	char neighbour_request_propogation[1024],
+    neighbour_node_removal[1024], me_request_propogation[1024],
+    me_node_removal[1024];
+
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	if ((rv = getaddrinfo(join_server_ip_address, join_server_port_number,
+			&hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return (void*) 1;
+	}
+
+	for (p = servinfo; p != NULL ; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
+				== -1) {
+			perror("connect_and_split_thread_routine : client: socket");
+			continue;
+		}
+
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("connect_and_split_thread_routine : client: connect");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL ) {
+		fprintf(stderr,
+				"connect_and_split_thread_routine : client: failed to connect\n");
+		return (void*) 2;
+	}
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
+			sizeof s);
+	fprintf(stderr,"connect_and_split_thread_routine : client: connecting to %s\n", s);
+	freeaddrinfo(servinfo); // all done with this structure
+
+	//receiving self boundary
+	memset(buf, '\0', 1024);
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+
+	deserialize_boundary(buf, &my_boundary);
+	me.boundary=my_boundary;
+	fprintf(stderr, "client's boundary assigned by server\n");
+
+	print_boundaries(me.boundary);
+
+////receiving neighbours boundary
+	memset(buf, '\0', 1024);
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+		}
+
+		deserialize_boundary(buf, &neighbour_boundary);
+
+		//neighbour.boundary=neighbour_boundary;
+		fprintf(stderr, "client received neighbours boundary\n");
+		//print_boundaries(neighbour.boundary);
+
+
+	/////////receiving portnumbers
+    memset(buf, '\0', 1024);
+        if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
+            perror("recv");
+            exit(1);
+        }
+        //deserialize_port_numbers(buf,&me);
+        deserialize_port_numbers2(buf,neighbour_request_propogation,
+                neighbour_node_removal, me_request_propogation,
+                me_node_removal);
+        strcpy(me.request_propogation,me_request_propogation);
+        strcpy(me.node_removal,me_node_removal);
+        fprintf(stderr, "\n Got port numbers: %s %s %s %s ", neighbour_request_propogation,
+                    neighbour_node_removal, me.request_propogation,
+                    me.node_removal);
+
+
+
+		for(counter=0;counter<10;counter++)
+		{
+			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
+			{
+				neighbour[counter].boundary=neighbour_boundary;
+				sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
+				sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
+				print_boundaries(neighbour[counter].boundary);
+				break;
+			}
+			else
+				continue;
+		}
+
+
+
+    pthread_mutex_lock(&prop_mutex);
+    pthread_cond_signal(&prop_cv);
+    pthread_mutex_unlock(&prop_mutex);
+
+    mode = SPLITTING_CHILD_MIGRATING;
+    fprintf(stderr,"Mode changed: SPLITTING_CHILD_INIT -> SPLITTING_CHILD_MIGRATING\n");
+
+   _receive_keys_and_trash_keys(sockfd);
+    close(sockfd);
+
+    mode = NORMAL_NODE;
+    fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
+	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,(void*)&args);
+
+
+	return 0;
+}
+
+
+
 
 static void _send_my_boundary_to(int another_node_fd) {
 	char buf[1024];
@@ -4661,6 +4665,7 @@ static void process_die_command(conn *c) {
     mode = MERGING_CHILD_INIT;
     fprintf(stderr, "Mode changed: NORMAL_NODE -> MERGING_CHILD_INIT\n");
 
+   //usleep(1000*1000*5);
 	_send_my_boundary_to(sockfd);
 
     mode = MERGING_CHILD_MIGRATING;
