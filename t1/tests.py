@@ -20,19 +20,20 @@ def delete_key(node, key):
 
 def _do_get(key, node):
     node.write("get " + key + "\n")
-    str = node.read_until("END")
+    str = node.read_until("END\r\n")
     output_lines = re.split("\r\n", str)
-    if len(output_lines) == 1: return None, None
-    actual_metadata = output_lines[1]
-    actual_value = output_lines[2]
+    if output_lines[0] == "END": return None, None
+    actual_metadata = output_lines[0]
+    actual_value = output_lines[1]
     return  actual_value, actual_metadata
 
 
 def get_key(node, key, expected_value, expected_flag=0):
     ( actual_value, actual_metadata) = _do_get(key, node)
     expected_metadata = "VALUE %s %d %d" % (key, expected_flag, len(expected_value))
-    assert actual_metadata == expected_metadata, "Incorrect metadata"
-    assert actual_value == expected_value, "GET: Expected:%s, Actual:%s" % (expected_value, actual_value)
+    assert actual_metadata == expected_metadata, "GET %s: Expected metadata: %s,Actual metadata: %s" % (
+        key, expected_metadata, actual_metadata)
+    assert actual_value == expected_value, "GET %s: Expected:%s, Actual:%s" % (key, expected_value, actual_value)
 
 
 def set_key(node, key, flag, exptime, value):
@@ -48,5 +49,19 @@ def insert_keys(node, count, flag=0, exptime=500, value="abcde"):
         delete_key(node, key)
         set_key(node, key, flag, exptime, value)
 
+
+def read_keys(node, count):
+    for i in range(count + 1):
+        key = "key%d" % i
+        get_key(node, key, "abcde")
+
+
+def delete_keys(node, count):
+    for i in range(count + 1):
+        key = "key%d" % i
+        delete_key(node, key)
+
 insert_keys(node11211, 50)
+read_keys(node11211, 50)
+delete_keys(node11211, 50)
 
