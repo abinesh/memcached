@@ -3007,9 +3007,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         add_iov(c,  flag,strlen(ptr_to_flag));
                         add_iov(c, " ", 1);
                         add_iov(c,  length, strlen(ptr_to_length));
-                        add_iov(c, "\n", 1);
+                        add_iov(c, "\r\n", 2);
                         add_iov(c, value, strlen(ptr_to_value));
-                        add_iov(c, "\n", 1);
+                        add_iov(c, "\r\n", 2);
                     }
                 }
             }
@@ -3057,9 +3057,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 								add_iov(c,  flag,strlen(ptr_to_flag));
 								add_iov(c, " ", 1);
 								add_iov(c,  length, strlen(ptr_to_length));
-								add_iov(c, "\n", 1);
+								add_iov(c, "\r\n", 2);
 								add_iov(c, value, strlen(ptr_to_value));
-								add_iov(c, "\n", 1);
+								add_iov(c, "\r\n", 2);
 							}
                         }
                     }
@@ -4691,7 +4691,7 @@ static void process_die_command(conn *c) {
 	fprintf(stderr, "Trashing keys in parent and child:\n");
 	_trash_keys_in_both_nodes(sockfd, trash_both);
 
-	out_string(c, "Die command complete\n");
+	out_string(c, "Die command complete\r\n");
 	close(sockfd);
 	exit(0);
 }
