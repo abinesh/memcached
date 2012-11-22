@@ -3772,16 +3772,19 @@ static void deserialize_port_numbers2(char *s,char *neighbour_request_propogatio
 				neighbour_node_removal, me_request_propogation,
 				me_node_removal);
 }
+
 static void print_all_boundaries() {
 	if (settings.verbose > 1) {
 		fprintf(stderr, "Current boundaries:\n");
 		fprintf(stderr, "World boundary:");
 		print_boundaries(world_boundary);
-
 		fprintf(stderr, "My boundary:");
 		print_boundaries(my_boundary);
+		fprintf(stderr, "My new boundary:");
+		print_boundaries(my_new_boundary);
 	}
 }
+
 static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	int i = 0;
 	char *ptr, buf[1024], key_value_str[1024];
@@ -4207,15 +4210,17 @@ static void *node_removal_listener_thread_routine(void *args) {
             fprintf(stderr,"Mode changed: NORMAL_NODE -> MERGING_PARENT_INIT\n");
 
     		ZoneBoundary *child_boundary = _recv_boundary_from_child(new_fd);
-            ZoneBoundary *my_new_boundary = _merge_boundaries(&my_boundary,child_boundary);
+            ZoneBoundary *merged_boundary = _merge_boundaries(&my_boundary,child_boundary);
 
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
             _receive_keys_and_trash_keys(new_fd);
-            my_boundary = *my_new_boundary;
+            my_boundary = *merged_boundary;
+            my_new_boundary = my_boundary;
             fprintf(stderr,"My new boundary is:\n");
             print_boundaries(my_boundary);
+            print_boundaries(my_new_boundary);
             close(new_fd);
 
             mode = NORMAL_NODE;
@@ -4407,6 +4412,7 @@ static void *join_request_listener_thread_routine(void * args) {
 
         usleep(2000);
         pthread_t split_migrate_keys_thread;
+        usleep(3000);
         split_migrate_key_args args;
         args.child_fd = new_fd;
         args.item_lock_type_key = *item_lock_type_key;
