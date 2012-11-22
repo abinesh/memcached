@@ -56,6 +56,7 @@ print "Make sure a memcached node is running on 11211\n"
 def insert_keys(node, count, flag=0, exptime=500, value="abcde"):
     for i in range(count + 1):
         key = "key%d" % i
+        print "inserting key %s\n" % key
         delete_key(node, key)
         set_key(node, key, flag, exptime, value)
 
@@ -63,12 +64,14 @@ def insert_keys(node, count, flag=0, exptime=500, value="abcde"):
 def read_keys(node, count):
     for i in range(count + 1):
         key = "key%d" % i
+        print "getting key %s\n" % key
         get_key(node, key, "abcde")
 
 
 def delete_keys(node, count):
     for i in range(count + 1):
         key = "key%d" % i
+        print "deleting key %s\n" % key
         delete_key(node, key)
 
 insert_keys(node11211, 50)
