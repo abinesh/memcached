@@ -40,3 +40,4 @@ doc/protocol-binary.txt
 /doc/doxy
 /memcached.spec
 temp.txt
+*.pyc
