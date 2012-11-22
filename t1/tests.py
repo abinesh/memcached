@@ -1,7 +1,6 @@
 import re
 import telnetlib
 
-node11211 = telnetlib.Telnet("localhost", 11211)
 
 def assert_key_not_found(node, key):
     (value, metadata) = _do_get(key, node)
@@ -74,7 +73,7 @@ def delete_keys(node, count):
         print "deleting key %s\n" % key
         delete_key(node, key)
 
+node11211 = telnetlib.Telnet("localhost", 11211)
 insert_keys(node11211, 50)
 read_keys(node11211, 50)
 delete_keys(node11211, 50)
-
