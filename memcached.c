@@ -2947,6 +2947,43 @@ static void get_neighbour_information(char *key,node_info *info)
 
 }
 
+static void print_boundaries(ZoneBoundary b) {
+	if (settings.verbose > 1) {
+		fprintf(stderr, "[(%f,%f) to (%f,%f)]\n", b.from.x, b.from.y, b.to.x,
+				b.to.y);
+	}
+}
+
+static void print_all_boundaries() {
+	if (settings.verbose > 1) {
+		fprintf(stderr, "Current boundaries:\n");
+		fprintf(stderr, "World boundary:");
+		print_boundaries(world_boundary);
+		fprintf(stderr, "My boundary:");
+		print_boundaries(my_boundary);
+		fprintf(stderr, "My new boundary:");
+		print_boundaries(my_new_boundary);
+	}
+}
+
+static void print_ecosystem(){
+    fprintf(stderr,"------------\n");
+    print_all_boundaries();
+    fprintf(stderr,"me.request_propogation port = %s\n",me.request_propogation);
+    fprintf(stderr,"me.node_removal port = %s\n",me.node_removal);
+    int i=0;
+    for(i=0;i<10;i++){
+        if(strcmp(neighbour[i].node_removal,"NULL") || strcmp(neighbour[i].request_propogation,"NULL"))
+        {
+            fprintf(stderr,"Neighour %d\n",i);
+            print_boundaries(neighbour[i].boundary);
+            fprintf(stderr, "neighbour[i].request_propogation =%s\n",neighbour[i].request_propogation);
+            fprintf(stderr,"neighbour[i].node_removal = %s\n",neighbour[i].node_removal);
+        }
+    }
+    fprintf(stderr,"------------\n");
+}
+
 
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
@@ -2968,6 +3005,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 	node_info *info;
 	info = (node_info *) malloc(
 				sizeof(node_info));
+
+    print_ecosystem();
 
 	do {
 		while (key_token->length != 0) {
@@ -3645,13 +3684,6 @@ static void process_slabs_automove_command(conn *c, token_t *tokens,
 	return;
 }
 
-static void print_boundaries(ZoneBoundary b) {
-	if (settings.verbose > 1) {
-		fprintf(stderr, "[(%f,%f) to (%f,%f)]\n", b.from.x, b.from.y, b.to.x,
-				b.to.y);
-	}
-}
-
 static void serialize_boundary(ZoneBoundary b, char *s) {
 	sprintf(s, "[(%f,%f) to (%f,%f)]", b.from.x, b.from.y, b.to.x, b.to.y);
 }
@@ -3767,18 +3799,6 @@ static void deserialize_port_numbers2(char *s,char *neighbour_request_propogatio
 {
 	sscanf(s, " %s %s ", neighbour_request_propogation,
 				neighbour_node_removal);
-}
-
-static void print_all_boundaries() {
-	if (settings.verbose > 1) {
-		fprintf(stderr, "Current boundaries:\n");
-		fprintf(stderr, "World boundary:");
-		print_boundaries(world_boundary);
-		fprintf(stderr, "My boundary:");
-		print_boundaries(my_boundary);
-		fprintf(stderr, "My new boundary:");
-		print_boundaries(my_new_boundary);
-	}
 }
 
 static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
@@ -6418,7 +6438,7 @@ static int find_port(int *sock_desc){
 		   			exit(1);
 		   	}
 		portno =  ntohs(serv_addr.sin_port);
-	         printf("The actual port number is %d\n", portno);
+        fprintf(stderr, "The actual port number is %d\n", portno);
 		freeaddrinfo(servinfo);
 		*sock_desc=socket_descriptor;
 		return portno;
@@ -6447,8 +6467,6 @@ static int *u_socket = NULL;
 bool protocol_specified = false;
 bool tcp_specified = false;
 bool udp_specified = false;
-
-int port1,port2,port3,port4;
 
 char *subopts;
 char *subopts_value;
@@ -6923,10 +6941,10 @@ if (is_new_joining_node == 0) {
 
 	//fprintf(stderr,"\nPortnum--->%d\n",find_port());
 
-	port1=find_port(&sock_desc1);
-	port2=find_port(&sock_desc2);
-	fprintf(stderr,"\nPortnum--->%d\n",port1);
-	fprintf(stderr,"\nPortnum--->%d\n",port2);
+	int port1=find_port(&sock_desc1);
+	int port2=find_port(&sock_desc2);
+	fprintf(stderr,"\nRequest progogation listening on %d\n",port1);
+	fprintf(stderr,"\nNode removal listening on %d\n",port2);
 	sprintf(me.request_propogation,"%d",port1);
 	sprintf(me.node_removal,"%d",port2);
 
@@ -6952,10 +6970,10 @@ if (is_new_joining_node == 0) {
     //fprintf(stderr,"\nPortnum--->%d\n",find_port());
 
 
-    port3=find_port(&sock_desc3);
-    port4=find_port(&sock_desc4);
-    fprintf(stderr,"\nPortnum--->%d\n",port3);
-    fprintf(stderr,"\nPortnum--->%d\n",port4);
+    int port3=find_port(&sock_desc3);
+    int port4=find_port(&sock_desc4);
+	fprintf(stderr,"\nRequest progogation listening on %d\n",port3);
+	fprintf(stderr,"\nNode removal listening on %d\n",port4);
     sprintf(me.request_propogation,"%d",port3);
     sprintf(me.node_removal,"%d",port4);
     me.sock_desc_request_propogation=sock_desc3;
