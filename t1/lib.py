@@ -7,7 +7,7 @@ def assert_key_not_found(node, key):
 
 
 def delete_key(node, key):
-    node.write("delete " + key + "\n")
+    node.write("delete " + key + "\r\n")
     str = node.read_until("\r\n")
     delete_message = re.split("\r\n", str)[0]
     assert delete_message == "DELETED" or delete_message == "NOT_FOUND", "Error while deleting key %s: Message from memcached: %s" % (
@@ -16,7 +16,7 @@ def delete_key(node, key):
 
 
 def _do_get(key, node):
-    node.write("get " + key + "\n")
+    node.write("get " + key + "\r\n")
     str = node.read_until("END\r\n")
     output_lines = re.split("\r\n", str)
     if output_lines[0] == "END":
@@ -43,7 +43,7 @@ def get_key(node, key, expected_value, expected_flag=0):
     assert actual_value == expected_value, "GET %s: Expected:%s, Actual:%s" % (key, expected_value, actual_value)
 
 
-def insert_keys(node, count, flag=0, exptime=500, value="abcde"):
+def insert_keys(node, count, flag=0, exptime=5000, value="abcde"):
     for i in range(count + 1):
         key = "key%d" % i
         print "inserting key %s\n" % key
@@ -66,6 +66,6 @@ def delete_keys(node, count):
 
 
 def set_key(node, key, flag, exptime, value):
-    node.write("set %s %d %d %d" % (key, flag, exptime, len(value)) + "\n")
+    node.write("set %s %d %d %d" % (key, flag, exptime, len(value)) + "\r\n")
     node.write(value + "\r\n")
     node.read_until("STORED\r\n")
