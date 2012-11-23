@@ -2751,6 +2751,7 @@ static Point key_point(char *key) {
 	unsigned long hash = str_hash(key);
 	p.x = hash % (int) (world_boundary.to.x);
 	p.y = hash % (int) (world_boundary.to.y);
+	fprintf(stderr,"Key %s projects to (%f,%f)\n",key,p.x,p.y);
 	return p;
 }
 
@@ -3715,6 +3716,7 @@ static void store_key_value(char *key, int flags, int time, int length,
 		char* value) {
 	item *it;
 	it = item_get(key, strlen(key));
+	fprintf(stderr,"store_key_value key %s\n",key);
 	if (it) {
 		item_unlink(it);
 		item_remove(it);
@@ -3949,6 +3951,7 @@ static void getting_key_from_neighbour(char *key, int sock_fd) {
 
 static void updating_key_from_neighbour(char *key, int flags, int time, int length, char* value){
 	if(mode == NORMAL_NODE){
+	    fprintf(stderr,"storing key %s received from neighbour",key);
         store_key_value(key,flags,time,length,value);
     }
     else
@@ -3963,10 +3966,10 @@ static void updating_key_from_neighbour(char *key, int flags, int time, int leng
         )
     {
         if(mylist_contains(&trash_both,key)==1) {
-            fprintf(stderr,"key present in trash list, ignoring PUTs\n");
+            fprintf(stderr,"key %s present in trash list, ignoring PUTs\n",key);
         }
         else{
-            fprintf(stderr,"adding key to trash list and ignoring PUT\n");
+            fprintf(stderr,"adding key %s to trash list and ignoring PUT\n",key);
             mylist_add(&trash_both,key);
         }
     }
@@ -4213,57 +4216,16 @@ static void *node_removal_listener_thread_routine(void *args) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "in node_removal_listener_thread_routine\n");
 
-	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-	struct addrinfo hints, *servinfo, *p;
+	int new_fd; // listen on sock_fd, new connection on new_fd
 	struct sockaddr_storage their_addr; // connector's address information
 	socklen_t sin_size;
 	struct sigaction sa;
-	int yes = 1;
 	char s[INET6_ADDRSTRLEN];
-	int rv;
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
+	int port = find_port(&me.sock_desc_node_removal);
+    sprintf(me.node_removal,"%d",port);
 
-	if ((rv = getaddrinfo(NULL, me.node_removal, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return (void*) 1;
-	}
-	// loop through all the results and bind to the first we can
-	for (p = servinfo; p != NULL ; p = p->ai_next) {
-
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			perror("node_removal_listener_thread_routine : server: socket");
-			continue;
-		}
-
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))
-				== -1) {
-			perror("setsockopt");
-			exit(1);
-		}
-
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("node_removal_listener_thread_routine : server: bind");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL ) {
-		fprintf(stderr,
-				"node_removal_listener_thread_routine : server: failed to bind\n");
-		return (void*) 2;
-	}
-
-	freeaddrinfo(servinfo); // all done with this structure
-
-	if (listen(sockfd, BACKLOG) == -1) {
+	if (listen(me.sock_desc_node_removal, BACKLOG) == -1) {
 		perror("listen");
 		exit(1);
 	}
@@ -4282,7 +4244,7 @@ static void *node_removal_listener_thread_routine(void *args) {
 	while (1) { // main accept() loop
 
 		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
+		new_fd = accept(me.sock_desc_node_removal, (struct sockaddr *) &their_addr, &sin_size);
 
 		if (new_fd == -1) {
 			perror("accept");
@@ -5448,10 +5410,13 @@ while (!stop) {
 		break;
 
 	case conn_nread:
+        fprintf(stderr,"1.storing key %s\n",key_to_transfer);
 		if (c->rlbytes == 0) {
 			complete_nread(c);
 			break;
 		}
+        fprintf(stderr,"2.storing key %s\n",key_to_transfer);
+
 		/* first check if we have leftovers in the conn_read buffer */
 		if (c->rbytes > 0) {
 			int tocopy = c->rbytes > c->rlbytes ? c->rlbytes : c->rbytes;
@@ -5466,7 +5431,7 @@ while (!stop) {
 				break;
 			}
 		}
-
+        fprintf(stderr,"3.storing key %s\n",key_to_transfer);
 		/*now try reading from the socket*/
 		res = read(c->sfd, c->ritem, c->rlbytes);
 
@@ -5481,6 +5446,8 @@ while (!stop) {
 			c->rlbytes -= res;
 			Point resolved_point = key_point(key_to_transfer);
 			if (is_within_boundary(resolved_point, my_boundary) != 1) {
+                fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
+
 				sprintf(to_transfer, "%s %s", command_to_transfer, c->ritem -=
 						res);
 				get_neighbour_information(key_to_transfer,info);
@@ -5489,13 +5456,18 @@ while (!stop) {
 				mylist_delete(&list_of_keys, key_to_transfer);
 				pthread_mutex_unlock(&list_of_keys_lock);
 			}
-
+			else {
+			    fprintf(stderr,"storing key %s locally\n",key_to_transfer);
+			}
 			break;
 		}
+        fprintf(stderr,"5.storing key %s\n",key_to_transfer);
+
 		if (res == 0) { /* end of stream */
 			conn_set_state(c, conn_closing);
 			break;
 		}
+        fprintf(stderr,"6.storing key %s\n",key_to_transfer);
 		if (res == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
 			if (!update_event(c, EV_READ | EV_PERSIST)) {
 				if (settings.verbose > 0)
@@ -5506,6 +5478,7 @@ while (!stop) {
 			stop = true;
 			break;
 		}
+        fprintf(stderr,"7.storing key %s\n",key_to_transfer);
 		/* otherwise we have a real error, on which we close the connection */
 		if (settings.verbose > 0) {
 			fprintf(stderr, "Failed to read, and not due to blocking:\n"
@@ -6309,7 +6282,7 @@ return true;
 }
 
 int main(int argc, char **argv) {
-int c,i,sock_desc1=0,sock_desc2=0,sock_desc3=0,sock_desc4=0;
+int c,i,sock_desc1=0,sock_desc2=0,sock_desc3=0;
 bool lock_memory = false;
 bool do_daemonize = false;
 bool preallocate = false;
@@ -6804,17 +6777,17 @@ if (is_new_joining_node == 0) {
 	//fprintf(stderr,"\nPortnum--->%d\n",find_port());
 
 	int port1=find_port(&sock_desc1);
-	int port2=find_port(&sock_desc2);
+//	int port2=find_port(&sock_desc2);
 	fprintf(stderr,"\nRequest progogation listening on %d\n",port1);
-	fprintf(stderr,"\nNode removal listening on %d\n",port2);
+//	fprintf(stderr,"\nNode removal listening on %d\n",port2);
 	sprintf(me.request_propogation,"%d",port1);
-	sprintf(me.node_removal,"%d",port2);
+//	sprintf(me.node_removal,"%d",port2);
 
 	fprintf(stderr,"\nSockdesc1--->%d\n",sock_desc1);
 	fprintf(stderr,"\nsockdesc2--->%d\n",sock_desc2);
 
 	me.sock_desc_request_propogation=sock_desc1;
-	me.sock_desc_node_removal=sock_desc2;
+//	me.sock_desc_node_removal=sock_desc2;
 
 
 	for(i =0 ;i < 10 ;i++)
@@ -6833,13 +6806,13 @@ if (is_new_joining_node == 0) {
 
 
     int port3=find_port(&sock_desc3);
-    int port4=find_port(&sock_desc4);
+//    int port4=find_port(&sock_desc4);
 	fprintf(stderr,"\nRequest progogation listening on %d\n",port3);
-	fprintf(stderr,"\nNode removal listening on %d\n",port4);
+//	fprintf(stderr,"\nNode removal listening on %d\n",port4);
     sprintf(me.request_propogation,"%d",port3);
-    sprintf(me.node_removal,"%d",port4);
+//    sprintf(me.node_removal,"%d",port4);
     me.sock_desc_request_propogation=sock_desc3;
-    	me.sock_desc_node_removal=sock_desc4;
+//    	me.sock_desc_node_removal=sock_desc4;
 
     fprintf(stderr, "Mode set as : SPLITTING_CHILD_INIT\n");
     for(i =0 ;i < 10 ;i++)
