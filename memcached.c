@@ -5280,6 +5280,30 @@ if (c->msgcurr < c->msgused) {
 }
 }
 
+static void _propagate_update_command_if_required(conn *c, char *key_to_transfer){
+    char to_transfer[1024];
+    char buf[1024];
+    node_info *info = (node_info *) malloc(sizeof(node_info));
+    item *it =  it = item_get(key_to_transfer, strlen(key_to_transfer));
+
+    Point resolved_point = key_point(key_to_transfer);
+    if (is_within_boundary(resolved_point, my_boundary) != 1) {
+        fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
+
+        sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
+        get_neighbour_information(key_to_transfer,info);
+        request_neighbour(to_transfer, buf, "set",info);
+        pthread_mutex_lock(&list_of_keys_lock);
+        mylist_delete(&list_of_keys, key_to_transfer);
+        pthread_mutex_unlock(&list_of_keys_lock);
+    }
+    else {
+        fprintf(stderr,"storing key %s locally\n",key_to_transfer);
+    }
+    free(info);
+}
+
+int previous_state=-1;
 static void drive_machine(conn *c) {
 bool stop = false;
 int sfd, flags = 1;
@@ -5288,13 +5312,8 @@ struct sockaddr_storage addr;
 int nreqs = settings.reqs_per_event;
 int res;
 const char *str;
-char to_transfer[1024];
-char buf[1024];
 // char *ptr;
 //item *it;
-node_info *info;
-info = (node_info *) malloc(
-				sizeof(node_info));
 
 assert(c != NULL);
 
@@ -5410,6 +5429,7 @@ while (!stop) {
 		break;
 
 	case conn_nread:
+	    previous_state = conn_nread;
         fprintf(stderr,"1.storing key %s\n",key_to_transfer);
 		if (c->rlbytes == 0) {
 			complete_nread(c);
@@ -5444,21 +5464,6 @@ while (!stop) {
 			}
 			c->ritem += res;
 			c->rlbytes -= res;
-			Point resolved_point = key_point(key_to_transfer);
-			if (is_within_boundary(resolved_point, my_boundary) != 1) {
-                fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
-
-				sprintf(to_transfer, "%s %s", command_to_transfer, c->ritem -=
-						res);
-				get_neighbour_information(key_to_transfer,info);
-				request_neighbour(to_transfer, buf, "set",info);
-				pthread_mutex_lock(&list_of_keys_lock);
-				mylist_delete(&list_of_keys, key_to_transfer);
-				pthread_mutex_unlock(&list_of_keys_lock);
-			}
-			else {
-			    fprintf(stderr,"storing key %s locally\n",key_to_transfer);
-			}
 			break;
 		}
         fprintf(stderr,"5.storing key %s\n",key_to_transfer);
@@ -5537,6 +5542,10 @@ while (!stop) {
 		break;
 
 	case conn_write:
+	    if(previous_state == conn_nread){
+            _propagate_update_command_if_required(c,key_to_transfer);
+            previous_state = -1;
+        }
 		/*
 		 * We want to write out a simple response. If we haven't already,
 		 * assemble it into a msgbuf list (this will be a single-entry
