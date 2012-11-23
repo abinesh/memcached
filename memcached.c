@@ -3260,11 +3260,6 @@ static void process_update_command(conn *c, token_t *tokens,
 	key = tokens[KEY_TOKEN].value;
 	nkey = tokens[KEY_TOKEN].length;
 
-	pthread_mutex_lock(&list_of_keys_lock);
-	mylist_delete(&list_of_keys, key);
-	mylist_add(&list_of_keys, key);
-	pthread_mutex_unlock(&list_of_keys_lock);
-
 	if (!(safe_strtoul(tokens[2].value, (uint32_t *) &flags)
 			&& safe_strtol(tokens[3].value, &exptime_int)
 			&& safe_strtol(tokens[4].value, (int32_t *) &vlen))) {
@@ -3299,7 +3294,22 @@ static void process_update_command(conn *c, token_t *tokens,
 		stats_prefix_record_set(key, nkey);
 	}
 
-    if( mode == SPLITTING_PARENT_INIT ||
+    if(mode == NORMAL_NODE){
+        Point resolved_point = key_point(key);
+        if(settings.verbose > 1)
+            fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
+
+        if(is_within_boundary(resolved_point,my_new_boundary) == 1){
+            pthread_mutex_lock(&list_of_keys_lock);
+            mylist_delete(&list_of_keys, key);
+            mylist_add(&list_of_keys, key);
+            pthread_mutex_unlock(&list_of_keys_lock);
+        }
+        else {
+        // this update command request will be propagated to the right node when the code reaches drive_machine case conn_nread
+        }
+    }
+    else if( mode == SPLITTING_PARENT_INIT ||
         mode == SPLITTING_PARENT_MIGRATING ||
         mode == SPLITTING_CHILD_INIT ||
         mode == SPLITTING_CHILD_MIGRATING ||
@@ -3313,7 +3323,13 @@ static void process_update_command(conn *c, token_t *tokens,
         if(settings.verbose > 1)
         fprintf(stderr,"Key %s resolves to point  = (%f,%f)\n", key,resolved_point.x,resolved_point.y);
 
-        if(is_within_boundary(resolved_point,my_new_boundary)!=1){
+        if(is_within_boundary(resolved_point,my_new_boundary) == 1){
+            pthread_mutex_lock(&list_of_keys_lock);
+            mylist_delete(&list_of_keys, key);
+            mylist_add(&list_of_keys, key);
+            pthread_mutex_unlock(&list_of_keys_lock);
+        }
+        else{
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_new_boundary.from.x,my_new_boundary.from.y,my_new_boundary.to.x,my_new_boundary.to.y);
             fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
             mylist_add(&trash_both,key);
