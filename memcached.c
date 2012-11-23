@@ -3740,7 +3740,7 @@ static void _receive_keys_and_trash_keys(int sockfd) {
 	int flag1, flag2, flag3, numbytes, i = 0;
 	char value[1024];
 	memset(buf, '\0', 1024);
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
+	if ((numbytes = recv(sockfd, buf,  sizeof(buf), 0)) == -1) {
 		perror("recv");
 		exit(1);
 	}
@@ -3815,6 +3815,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		perror("send");
 
 	for (i = 0; i < keys_to_send.size; i++) {
+        usleep(1000000);
 		char *key = keys_to_send.array[i];
 		item *it = item_get(key, strlen(key));
 		ptr = strtok(ITEM_suffix(it), " ");
@@ -3824,7 +3825,6 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
 		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
 		delete_key_locally(key);
-		usleep(1000000);
 	}
 }
 
