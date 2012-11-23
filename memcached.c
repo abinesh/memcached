@@ -2969,15 +2969,17 @@ static void print_all_boundaries() {
 static void print_ecosystem(){
     fprintf(stderr,"------------\n");
     print_all_boundaries();
+    fprintf(stderr,"me.join_request port = %s\n",me.join_request);
     fprintf(stderr,"me.request_propogation port = %s\n",me.request_propogation);
     fprintf(stderr,"me.node_removal port = %s\n",me.node_removal);
     int i=0;
     for(i=0;i<10;i++){
         if(strcmp(neighbour[i].node_removal,"NULL") || strcmp(neighbour[i].request_propogation,"NULL"))
         {
-            fprintf(stderr,"Neighour %d\n",i);
+            fprintf(stderr,"\nNeighour %d\n",i);
             print_boundaries(neighbour[i].boundary);
-            fprintf(stderr, "neighbour[i].request_propogation =%s\n",neighbour[i].request_propogation);
+            fprintf(stderr, "neighbour[i].join_request = %s\n",neighbour[i].join_request);
+            fprintf(stderr, "neighbour[i].request_propogation = %s\n",neighbour[i].request_propogation);
             fprintf(stderr,"neighbour[i].node_removal = %s\n",neighbour[i].node_removal);
         }
     }
@@ -4139,6 +4141,58 @@ static ZoneBoundary* _merge_boundaries(ZoneBoundary *a, ZoneBoundary *b) {
 	return result;
 }
 
+
+static int find_port(int *sock_desc){
+
+	struct addrinfo hints, *servinfo, *p;
+		int rv,addrlen;
+		int socket_descriptor=0,portno;
+		memset(&hints, 0, sizeof hints);
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_flags = INADDR_ANY;
+		struct sockaddr_in serv_addr;
+	int input_portno = 0;
+	char portnoString[10];
+		sprintf(portnoString,"%i", input_portno);
+
+		if ((rv = getaddrinfo(NULL, portnoString, &hints, &servinfo)) != 0) {
+				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+				//return 1;
+		}
+
+		// loop through all the results and bind to the first we can
+		for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((socket_descriptor = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+					perror("listener: socket");
+					continue;
+			}
+			if (bind(socket_descriptor, p->ai_addr, p->ai_addrlen) == -1) {
+				close(socket_descriptor);
+				perror("listener: bind");
+				continue;
+			}
+			break;
+		}
+		if (p == NULL) {
+			fprintf(stderr, "listener: failed to bind socket\n");
+			//return 2;
+		}
+		addrlen = sizeof(serv_addr);
+		int getsock_check=getsockname(socket_descriptor,(struct sockaddr *)&serv_addr, (socklen_t *)&addrlen) ;
+
+		   	if (getsock_check== -1) {
+		   			perror("getsockname");
+		   			exit(1);
+		   	}
+		portno =  ntohs(serv_addr.sin_port);
+        fprintf(stderr, "The actual port number is %d\n", portno);
+		freeaddrinfo(servinfo);
+		*sock_desc=socket_descriptor;
+		return portno;
+}
+
 static void *node_removal_listener_thread_routine(void *args) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "in node_removal_listener_thread_routine\n");
@@ -4253,62 +4307,20 @@ static void *join_request_listener_thread_routine(void * args) {
 		fprintf(stderr, "in join_request_listener_thread_routine ");
 
 	int MAXDATASIZE=1024;
-	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-	struct addrinfo hints, *servinfo, *p;
+	int new_fd; // listen on sock_fd, new connection on new_fd
 	struct sockaddr_storage their_addr; // connector's address information
 	socklen_t sin_size;
 	struct sigaction sa;
-	int yes = 1;
 	char s[INET6_ADDRSTRLEN],buf[1024];
-	int rv;
     int counter,numbytes;
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
-	//char me_request_propogation[1024], me_node_removal[1024];
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
     my_new_boundary = my_boundary;
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
+    int port = find_port(&me.sock_desc_join_request);
+	sprintf(me.join_request,"%d",port);
 
-	if ((rv = getaddrinfo(NULL, JOIN_REQUEST_LISTENING_PORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return (void*) 1;
-	}
-// loop through all the results and bind to the first we can
-	for (p = servinfo; p != NULL ; p = p->ai_next) {
-
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			perror("join_request_listener_thread_routine : server: socket");
-			continue;
-		}
-
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))
-				== -1) {
-			perror("setsockopt");
-			exit(1);
-		}
-
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);if (settings.verbose > 1)
-			perror("join_request_listener_thread_routine : server: bind");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL ) {
-		fprintf(stderr,
-				"join_request_listener_thread_routine : server: failed to bind\n");
-		return (void*) 2;
-	}
-
-	freeaddrinfo(servinfo); // all done with this structure
-
-	if (listen(sockfd, BACKLOG) == -1) {
+	if (listen(me.sock_desc_join_request, BACKLOG) == -1) {
 		perror("listen");
 		exit(1);
 	}
@@ -4325,7 +4337,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	while (1) { // main accept() loop
     	fprintf(stderr,"join_request_listener_thread_routine : server: waiting for connections...\n");
 		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
+		new_fd = accept(me.sock_desc_join_request, (struct sockaddr *) &their_addr, &sin_size);
 
 		if (new_fd == -1) {
 			perror("accept");
@@ -4496,7 +4508,7 @@ static void *connect_and_split_thread_routine(void *args) {
 	if (p == NULL ) {
 		fprintf(stderr,
 				"connect_and_split_thread_routine : client: failed to connect\n");
-		return (void*) 2;
+		exit(-1);
 	}
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
@@ -4636,14 +4648,16 @@ static void find_neighbour(node_info *found_neighbour)
 	ZoneBoundary bounds;
 	for(counter=0;counter<10;counter++)
 		{
-			bounds=neighbour[counter].boundary;
-			area=calculate_area(bounds);
-			if(min>area&&area!=0)
-			{
-				min=area;
-				final_counter=counter;
+		    if(strcmp(neighbour[counter].node_removal,"NULL") || strcmp(neighbour[counter].request_propogation,"NULL"))
+            {
+                bounds=neighbour[counter].boundary;
+                area=calculate_area(bounds);
+                if(min>area&&area!=0)
+                {
+                    min=area;
+                    final_counter=counter;
+                }
 			}
-
 		}
 
 	strcpy(found_neighbour->node_removal, neighbour[final_counter].node_removal);
@@ -6277,174 +6291,6 @@ if (ever != NULL ) {
 
 return true;
 }
-
-
-/*static int find_port(){
-	if (settings.verbose > 1)
-			fprintf(stderr, "\nin findPort\n ");
-
-		int sockfd=0;//,new_fd; // listen on sock_fd, new connection on new_fd
-		struct addrinfo hints, *servinfo, *p;
-		//struct sockaddr_storage their_addr; // connector's address information
-		//socklen_t sin_size;
-		//struct sigaction sa;
-		int yes = 1;
-		//char s[INET6_ADDRSTRLEN];
-		int rv;
-
-		memset(&hints, 0, sizeof hints);
-		hints.ai_family = AF_UNSPEC;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_flags = AI_PASSIVE; // use my IP
-
-		int start=0;
-		char buf[1024];
-
-
-while(1)
-{
-
-		sprintf(buf,"%d",start);
-		fprintf(stderr,"\nbuf is1 -> %d\n",start);
-		if ((rv = getaddrinfo(NULL,buf, &hints, &servinfo)) != 0) {
-			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-			return 1;
-		}
-	// loop through all the results and bind to the first we can
-		for (p = servinfo; p != NULL ;p = p->ai_next ) {
-
-			if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-					== -1) {
-				perror("in findPort : server: socket");
-				continue;
-			}
-
-			if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))
-					== -1) {
-				perror("setsockopt");
-				exit(1);
-			}
-
-			if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-				close(sockfd);
-				fprintf(stderr,"\nbuf2 is -> %d\n",start);
-				perror("in findPort : server: bind");
-				continue;
-			}
-
-			break;
-		}
-
-		if (p == NULL ) {
-			fprintf(stderr,
-					"in findPort : server: failed to bind\n");
-			fprintf(stderr,"\nbuf2 is -> %d\n",start);
-		//	return 2;
-			start=start+1;
-
-		}
-		else
-		{
-			return start;
-		}
-
-
-
-
-
-		if (listen(sockfd, BACKLOG) == -1) {
-				perror("listen");
-				exit(1);
-			}
-
-			sa.sa_handler = sigchld_handler; // reap all dead processes
-			sigemptyset(&sa.sa_mask);
-			sa.sa_flags = SA_RESTART;
-
-			if (sigaction(SIGCHLD, &sa, NULL ) == -1) {
-				perror("sigaction");
-				exit(1);
-			}
-
-			while (1) { // main accept() loop
-		    	fprintf(stderr,"join_request_listener_thread_routine : server: waiting for connections...\n");
-				sin_size = sizeof their_addr;
-				new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
-
-				if (new_fd == -1) {
-					perror("accept");
-					continue;
-				}
-
-			}
-
-
-
-
-
-
-
-
-
-		//freeaddrinfo(servinfo); // all done with this structure
-
-}
-return 0;
-
-}*/
-
-
-static int find_port(int *sock_desc){
-
-	struct addrinfo hints, *servinfo, *p;
-		int rv,addrlen;
-		int socket_descriptor=0,portno;
-		memset(&hints, 0, sizeof hints);
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_flags = INADDR_ANY;
-		struct sockaddr_in serv_addr;
-	int input_portno = 0;
-	char portnoString[10];
-		sprintf(portnoString,"%i", input_portno);
-
-		if ((rv = getaddrinfo(NULL, portnoString, &hints, &servinfo)) != 0) {
-				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-				//return 1;
-		}
-		// loop through all the results and bind to the first we can
-		for(p = servinfo; p != NULL; p = p->ai_next) {
-			if ((socket_descriptor = socket(p->ai_family, p->ai_socktype,
-					p->ai_protocol)) == -1) {
-					perror("listener: socket");
-					continue;
-			}
-			if (bind(socket_descriptor, p->ai_addr, p->ai_addrlen) == -1) {
-				close(socket_descriptor);
-				perror("listener: bind");
-				continue;
-			}
-			break;
-		}
-		if (p == NULL) {
-			fprintf(stderr, "listener: failed to bind socket\n");
-			//return 2;
-		}
-		addrlen = sizeof(serv_addr);
-		int getsock_check=getsockname(socket_descriptor,(struct sockaddr *)&serv_addr, (socklen_t *)&addrlen) ;
-
-		   	if (getsock_check== -1) {
-		   			perror("getsockname");
-		   			exit(1);
-		   	}
-		portno =  ntohs(serv_addr.sin_port);
-        fprintf(stderr, "The actual port number is %d\n", portno);
-		freeaddrinfo(servinfo);
-		*sock_desc=socket_descriptor;
-		return portno;
-}
-
-
 
 int main(int argc, char **argv) {
 int c,i,sock_desc1=0,sock_desc2=0,sock_desc3=0,sock_desc4=0;
