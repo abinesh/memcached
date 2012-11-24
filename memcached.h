@@ -619,7 +619,6 @@ typedef struct tagPortNumbers{
     char request_propogation[10];
     char node_removal[10];
     int sock_desc_join_request;
-    int sock_desc_request_propogation;
 
 }node_info;
 node_info me, neighbour[10];
