@@ -620,14 +620,11 @@ typedef struct tagPortNumbers{
     char node_removal[10];
     int sock_desc_join_request;
     int sock_desc_request_propogation;
-    int sock_desc_node_removal;
 
 }node_info;
 node_info me, neighbour[10];
 
 pthread_mutex_t list_of_keys_lock ;
-pthread_mutex_t prop_mutex;
-pthread_cond_t prop_cv;
 pthread_t join_request_listening_thread;
 
 

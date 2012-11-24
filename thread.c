@@ -803,23 +803,11 @@ static void start_listening_on_node_propagation_port(void *(*node_propagation_li
 
 
 static void *start_routine(void *args){
-
 	function_pointer *fp = (function_pointer*)args;
-
-    pthread_mutex_lock(&prop_mutex);
-//    while(strcmp(neighbour.request_propogation,"0")){
-          pthread_cond_wait(&prop_cv, &prop_mutex);
-  //  }
     usleep(1000);
-            start_listening_on_node_propagation_port(fp->function1);
+    start_listening_on_node_propagation_port(fp->function1);
     usleep(1000);
-    	start_listening_on_node_removal_port(fp->function2);
-
-    pthread_mutex_unlock(&prop_mutex);
-
-
-
-    //pthread_exit(NULL);
+    start_listening_on_node_removal_port(fp->function2);
     return 0;
 }
 
@@ -841,10 +829,6 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
 
     pthread_mutex_init(&cqi_freelist_lock, NULL);
     cqi_freelist = NULL;
-
-    pthread_mutex_init(&prop_mutex, NULL);
-    pthread_cond_init (&prop_cv, NULL);
-
 
 
     /* Want a wide lock table, but don't waste memory */

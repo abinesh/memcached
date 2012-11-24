@@ -4221,11 +4221,12 @@ static void *node_removal_listener_thread_routine(void *args) {
 	socklen_t sin_size;
 	struct sigaction sa;
 	char s[INET6_ADDRSTRLEN];
+	int sockfd;
 
-	int port = find_port(&me.sock_desc_node_removal);
+	int port = find_port(&sockfd);
     sprintf(me.node_removal,"%d",port);
 
-	if (listen(me.sock_desc_node_removal, BACKLOG) == -1) {
+	if (listen(sockfd, BACKLOG) == -1) {
 		perror("listen");
 		exit(1);
 	}
@@ -4244,7 +4245,7 @@ static void *node_removal_listener_thread_routine(void *args) {
 	while (1) { // main accept() loop
 
 		sin_size = sizeof their_addr;
-		new_fd = accept(me.sock_desc_node_removal, (struct sockaddr *) &their_addr, &sin_size);
+		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
 
 		if (new_fd == -1) {
 			perror("accept");
@@ -4328,17 +4329,6 @@ static void *join_request_listener_thread_routine(void * args) {
 				"join_request_listener_thread_routine : server: got connection from %s\n",
 				s);
 
-
-
-
-		/*sprintf(neighbour.request_propogation, "11313");
-		sprintf(neighbour.node_removal, "11315");*/
-		//neighbour.boundary=client_boundary;
-
-        /*pthread_mutex_lock(&prop_mutex);
-        pthread_cond_signal(&prop_cv);
-        pthread_mutex_unlock(&prop_mutex);
-*/
 		mode = SPLITTING_PARENT_INIT;
         fprintf(stderr,"Mode changed: NORMAL_NODE -> SPLITTING_PARENT_INIT\n");
 
@@ -4387,14 +4377,6 @@ static void *join_request_listener_thread_routine(void * args) {
 						== -1)
 					perror("send");
 
-
-
-		/*sprintf(me_request_propogation, "11312");
-		sprintf(me_node_removal, "11314");
-		sprintf(neighbour_request_propogation, "11313");
-		sprintf(neighbour_node_removal, "11315");
-*/
-
 		serialize_port_numbers(me.request_propogation, me.node_removal,buf);
 
 		usleep(1000);
@@ -4426,11 +4408,6 @@ static void *join_request_listener_thread_routine(void * args) {
 				else
 					continue;
 			}
-
-////
-        pthread_mutex_lock(&prop_mutex);
-        pthread_cond_signal(&prop_cv);
-        pthread_mutex_unlock(&prop_mutex);
 
         usleep(2000);
         pthread_t split_migrate_keys_thread;
@@ -4558,11 +4535,6 @@ static void *connect_and_split_thread_routine(void *args) {
 		fprintf(stderr,"\nsending client portnumbers:%s\n",buf);
 		if (send(sockfd, buf, strlen(buf), 0)== -1)
 				perror("send");
-
-
-    pthread_mutex_lock(&prop_mutex);
-    pthread_cond_signal(&prop_cv);
-    pthread_mutex_unlock(&prop_mutex);
 
     mode = SPLITTING_CHILD_MIGRATING;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_INIT -> SPLITTING_CHILD_MIGRATING\n");
@@ -6781,22 +6753,14 @@ pthread_mutex_unlock(&list_of_keys_lock);
 if (is_new_joining_node == 0) {
 	mode = NORMAL_NODE;
 	fprintf(stderr, "Mode set as : NORMAL_NODE\n");
-
-
-	//fprintf(stderr,"\nPortnum--->%d\n",find_port());
-
 	int port1=find_port(&sock_desc1);
-//	int port2=find_port(&sock_desc2);
 	fprintf(stderr,"\nRequest progogation listening on %d\n",port1);
-//	fprintf(stderr,"\nNode removal listening on %d\n",port2);
 	sprintf(me.request_propogation,"%d",port1);
-//	sprintf(me.node_removal,"%d",port2);
 
 	fprintf(stderr,"\nSockdesc1--->%d\n",sock_desc1);
 	fprintf(stderr,"\nsockdesc2--->%d\n",sock_desc2);
 
 	me.sock_desc_request_propogation=sock_desc1;
-//	me.sock_desc_node_removal=sock_desc2;
 
 
 	for(i =0 ;i < 10 ;i++)
@@ -6811,17 +6775,11 @@ if (is_new_joining_node == 0) {
 			node_propagation_thread_routine);
 } else {
     mode = SPLITTING_CHILD_INIT;
-    //fprintf(stderr,"\nPortnum--->%d\n",find_port());
-
 
     int port3=find_port(&sock_desc3);
-//    int port4=find_port(&sock_desc4);
 	fprintf(stderr,"\nRequest progogation listening on %d\n",port3);
-//	fprintf(stderr,"\nNode removal listening on %d\n",port4);
     sprintf(me.request_propogation,"%d",port3);
-//    sprintf(me.node_removal,"%d",port4);
     me.sock_desc_request_propogation=sock_desc3;
-//    	me.sock_desc_node_removal=sock_desc4;
 
     fprintf(stderr, "Mode set as : SPLITTING_CHILD_INIT\n");
     for(i =0 ;i < 10 ;i++)
