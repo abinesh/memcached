@@ -2924,12 +2924,25 @@ static void deserialize_key_value_str2(char *key, char *flag1, int *flag2,
 	sscanf(key_value_str, "%s %s %d %s %s", key, flag1, flag2, flag3, value);
 }
 
+static float distance_squared(Point p1,Point p2){
+    float x_component = p1.x  - p2.x;
+    float y_component = p1.y  - p2.y;
+    return x_component*x_component + y_component*y_component;
+
+}
+
+static void centroid(ZoneBoundary b,Point *c){
+    c->x = b.from.x+ (b.to.x-b.from.x)/2;
+    c->y = b.from.y+ (b.to.y-b.from.y)/2;
+}
 
 static node_info get_neighbour_information(char *key)
 {
 	int counter;
 	ZoneBoundary bounds;
 	Point resolved_point = key_point(key);
+	node_info best_neighbour;
+	float closest_distance = 99999999;
 	for(counter=0;counter<10;counter++)
 	{
 		bounds=neighbour[counter].boundary;
@@ -2938,9 +2951,18 @@ static node_info get_neighbour_information(char *key)
 			fprintf(stderr,"\n------np value:%s-------------\n",neighbour[counter].request_propogation);
 			return neighbour[counter];
 		}
+		else {
+		    Point c;
+		    centroid(neighbour[counter].boundary,&c);
+		    float distance_from_this_neighbour = distance_squared(c,resolved_point);
+		    if(closest_distance>distance_from_this_neighbour){
+    		    best_neighbour = neighbour[counter];
+    		    closest_distance = distance_from_this_neighbour;
+		    }
+		}
 	}
-	node_info null_object;
-	return null_object;
+	fprintf(stderr,"Did not find point belonging directly onto any neighbour, propogating the request through the cluster by choosing the best neighbour\n");
+	return best_neighbour;
 }
 
 static void print_boundaries(ZoneBoundary b) {
