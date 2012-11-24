@@ -3721,10 +3721,9 @@ static void store_key_value(char *key, int flags, int time, int length,
 		item_unlink(it);
 		item_remove(it);
 		}
-		it = item_alloc(key, strlen(key), flags, realtime(time), length);
+		it = item_alloc(key, strlen(key), flags, realtime(time), length+2);
 		char *ptr = ITEM_data(it);
 		sprintf(ptr, "%s\r\n", value);
-		//sprintf(ptr,"%s",value);
 		item_link(it);
 
 		pthread_mutex_lock(&list_of_keys_lock);
@@ -4445,9 +4444,7 @@ static void *connect_and_split_thread_routine(void *args) {
 
 		deserialize_boundary(buf, &neighbour_boundary);
 
-		//neighbour.boundary=neighbour_boundary;
 		fprintf(stderr, "client received neighbours boundary\n");
-		//print_boundaries(neighbour.boundary);
 
 
 	/////////receiving portnumbers
@@ -4456,11 +4453,7 @@ static void *connect_and_split_thread_routine(void *args) {
             perror("recv");
             exit(1);
         }
-        //deserialize_port_numbers(buf,&me);
-        deserialize_port_numbers2(buf,neighbour_request_propogation,
-                neighbour_node_removal);
-        /*strcpy(me.request_propogation,me_request_propogation);
-        strcpy(me.node_removal,me_node_removal);*/
+        deserialize_port_numbers2(buf,neighbour_request_propogation,neighbour_node_removal);
         fprintf(stderr, "\n Got port numbers: %s %s ", neighbour_request_propogation,
                     neighbour_node_removal);
 

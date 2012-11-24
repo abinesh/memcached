@@ -776,7 +776,6 @@ static pthread_t connect_and_split_thread;
 static pthread_t join_request_listener_thread;
 static pthread_t node_removal_listener_thread;
 static pthread_t node_propagation_listener_thread;
-static pthread_t propagation_node_removal_thread;
 static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
@@ -798,17 +797,6 @@ static void start_listening_on_node_removal_port(void *(*node_removal_listener_t
 static void start_listening_on_node_propagation_port(void *(*node_propagation_listener_thread_routine)(void *)){
     static_joining_thread_routine = node_propagation_listener_thread_routine;
 	pthread_create(&node_propagation_listener_thread, 0,wrapper_routine_for_child, NULL);
-
-}
-
-
-static void *start_routine(void *args){
-	function_pointer *fp = (function_pointer*)args;
-    usleep(1000);
-    start_listening_on_node_propagation_port(fp->function1);
-    usleep(1000);
-    start_listening_on_node_removal_port(fp->function2);
-    return 0;
 }
 
 /*
@@ -891,25 +879,17 @@ void thread_init(int nthreads, struct event_base *main_base, void *(*join_reques
     pthread_mutex_unlock(&init_lock);
 
 
-    if(joining_thread_routine != NULL){
-
+    if(joining_thread_routine != NULL)
        connect_to_join_server(joining_thread_routine);
-      // sprintf(neighbour.request_propogation,"%s","0");
-    }
     else
-    {
-    	//start_listening_on_node_propagation_port(node_propagation_thread_routine);
         start_listening_on_join_port(join_request_listener_thread_routine);
 
-    }
-
-    fp = (function_pointer*)malloc(sizeof(function_pointer));
-    fp->function1=node_propagation_thread_routine;
-    fp->function2=node_removal_listener_thread_routine;
-	pthread_create(&propagation_node_removal_thread, 0,start_routine,(void*)fp);
+    usleep(1000);
+    start_listening_on_node_propagation_port(node_propagation_thread_routine);
+    usleep(1000);
+    start_listening_on_node_removal_port(node_removal_listener_thread_routine);
 
 	///we may want to comment this
 	pthread_join(connect_and_split_thread,NULL);
-
 }
 
