@@ -2925,7 +2925,7 @@ static void deserialize_key_value_str2(char *key, char *flag1, int *flag2,
 }
 
 
-static void get_neighbour_information(char *key,node_info *info)
+static node_info get_neighbour_information(char *key)
 {
 	int counter;
 	ZoneBoundary bounds;
@@ -2936,16 +2936,11 @@ static void get_neighbour_information(char *key,node_info *info)
 		if(is_within_boundary(resolved_point,bounds)==1)
 		{
 			fprintf(stderr,"\n------np value:%s-------------\n",neighbour[counter].request_propogation);
-			strcpy(info->request_propogation,neighbour[counter].request_propogation);
-			strcpy(info->node_removal,neighbour[counter].node_removal);
-			break;
-		}
-		else
-		{
-			continue;
+			return neighbour[counter];
 		}
 	}
-
+	node_info null_object;
+	return null_object;
 }
 
 static void print_boundaries(ZoneBoundary b) {
@@ -3005,9 +3000,6 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 	char *ptr_to_length;
 	char *ptr_to_flag;
 	it = NULL;
-	node_info *info;
-	info = (node_info *) malloc(
-				sizeof(node_info));
 
     print_ecosystem();
 
@@ -3033,8 +3025,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 else{
                     fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
 
-                    get_neighbour_information(key,info);
-                    request_neighbour(key,buf,"get",info);
+                    node_info info = get_neighbour_information(key);
+                    request_neighbour(key,buf,"get",&info);
                     fprintf(stderr, "buf is : %s",buf);
                     if(strcmp(buf,"NOT FOUND"))
                     {
@@ -3082,9 +3074,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         it= item_get(key,nkey);
                         if(it==NULL)
                         {
-                            get_neighbour_information(key,info);
-                            fprintf(stderr,"\n-------info-%s-\n",info->request_propogation);
-							request_neighbour(key,buf,"get",info);
+                            node_info info = get_neighbour_information(key);
+                            fprintf(stderr,"\n-------info-%s-\n",info.request_propogation);
+							request_neighbour(key,buf,"get",&info);
 							fprintf(stderr, "buf is : %s",buf);
 							if(strcmp(buf,"NOT FOUND"))
 							{
@@ -3602,10 +3594,6 @@ static void process_delete_command(conn *c, token_t *tokens,
 	char *key;
 	size_t nkey;
 	char buf[1024];
-	node_info *info;
-	info = (node_info *) malloc(
-					sizeof(node_info));
-
 	assert(c != NULL);
 
 	if (ntokens > 3) {
@@ -3635,8 +3623,8 @@ static void process_delete_command(conn *c, token_t *tokens,
         }
         else{
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
-            get_neighbour_information(key,info);
-            request_neighbour(key,buf,"delete",info);
+            node_info info = get_neighbour_information(key);
+            request_neighbour(key,buf,"delete",&info);
             out_string(c, "DELETED");
         }
     }
@@ -4491,7 +4479,6 @@ static void *connect_and_split_thread_routine(void *args) {
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,(void*)&args);
 
-
 	return 0;
 }
 
@@ -5200,7 +5187,6 @@ if (c->msgcurr < c->msgused) {
 static void _propagate_update_command_if_required(conn *c, char *key_to_transfer){
     char to_transfer[1024];
     char buf[1024];
-    node_info *info = (node_info *) malloc(sizeof(node_info));
     item *it =  it = item_get(key_to_transfer, strlen(key_to_transfer));
 
     Point resolved_point = key_point(key_to_transfer);
@@ -5208,8 +5194,8 @@ static void _propagate_update_command_if_required(conn *c, char *key_to_transfer
         fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
 
         sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
-        get_neighbour_information(key_to_transfer,info);
-        request_neighbour(to_transfer, buf, "set",info);
+        node_info info = get_neighbour_information(key_to_transfer);
+        request_neighbour(to_transfer, buf, "set",&info);
         pthread_mutex_lock(&list_of_keys_lock);
         mylist_delete(&list_of_keys, key_to_transfer);
         pthread_mutex_unlock(&list_of_keys_lock);
@@ -5217,7 +5203,6 @@ static void _propagate_update_command_if_required(conn *c, char *key_to_transfer
     else {
         fprintf(stderr,"storing key %s locally\n",key_to_transfer);
     }
-    free(info);
 }
 
 int previous_state=-1;
