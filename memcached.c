@@ -4219,8 +4219,9 @@ static ZoneBoundary* _merge_boundaries(ZoneBoundary *a, ZoneBoundary *b) {
 		result->from.y = a->from.y;
 		result->to.x = b->to.x;
 		result->to.y = b->to.y;
+        return result;
 	}
-	return result;
+	else return _merge_boundaries(b,a);
 }
 
 static void remove_from_neighbour_list(ZoneBoundary *a){
