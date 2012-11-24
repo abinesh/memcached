@@ -24,3 +24,11 @@ print raw_input("Have you started added another node(11212) to the cluster??")
 node11212 = telnetlib.Telnet("localhost", 11212)
 test_insert_read(node11211, keyprefix="b")
 test_read(node11212, keyprefix="b")
+
+print raw_input("Have you started added another node(11213) to the cluster??")
+node11213 = telnetlib.Telnet("localhost", 11213)
+test_insert_read_and_delete(node11211, keyprefix="bb")
+test_insert_read_and_delete(node11212, keyprefix="bb")
+test_insert_read_and_delete(node11213, keyprefix="bb")
+
+

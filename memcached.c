@@ -2944,23 +2944,28 @@ static node_info get_neighbour_information(char *key)
 	float closest_distance = 99999999;
 	for(counter=0;counter<10;counter++)
 	{
-		bounds=neighbour[counter].boundary;
-		if(is_within_boundary(resolved_point,bounds)==1)
-		{
-			fprintf(stderr,"\n------np value:%s-------------\n",neighbour[counter].request_propogation);
-			return neighbour[counter];
-		}
-		else {
-		    Point c;
-		    centroid(neighbour[counter].boundary,&c);
-		    float distance_from_this_neighbour = distance_squared(c,resolved_point);
-		    if(closest_distance>distance_from_this_neighbour){
-    		    best_neighbour = neighbour[counter];
-    		    closest_distance = distance_from_this_neighbour;
-		    }
+	    if(strcmp(neighbour[counter].node_removal,"NULL") || strcmp(neighbour[counter].request_propogation,"NULL"))
+        {
+            bounds=neighbour[counter].boundary;
+            if(is_within_boundary(resolved_point,bounds)==1)
+            {
+                fprintf(stderr,"\n------np value:%s-------------\n",neighbour[counter].request_propogation);
+                return neighbour[counter];
+            }
+            else {
+                Point c;
+                centroid(neighbour[counter].boundary,&c);
+                float distance_from_this_neighbour = distance_squared(c,resolved_point);
+                fprintf(stderr,"Distance squared = %f\n",distance_from_this_neighbour);
+                if(closest_distance>distance_from_this_neighbour){
+                    best_neighbour = neighbour[counter];
+                    closest_distance = distance_from_this_neighbour;
+                }
+            }
 		}
 	}
 	fprintf(stderr,"Did not find point belonging directly onto any neighbour, propogating the request through the cluster by choosing the best neighbour\n");
+	fprintf(stderr,"Chosen neighbour.request_propagation=%s\n",best_neighbour.request_propogation);
 	return best_neighbour;
 }
 
