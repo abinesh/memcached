@@ -3049,7 +3049,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     node_info info = get_neighbour_information(key);
                     request_neighbour(key,buf,"get",&info);
                     fprintf(stderr, "buf is : %s",buf);
-                    if(strcmp(buf,"NOT FOUND"))
+                    if(strncmp(buf,"NOT FOUND",9))
                     {
                         deserialize_key_value_str2(key2,flag,&time,length,value,buf);
                         fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
@@ -3099,7 +3099,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                             fprintf(stderr,"\n-------info-%s-\n",info.request_propogation);
 							request_neighbour(key,buf,"get",&info);
 							fprintf(stderr, "buf is : %s",buf);
-							if(strcmp(buf,"NOT FOUND"))
+							if(strncmp(buf,"NOT FOUND",9))
 							{
 								deserialize_key_value_str2(key2,flag,&time,length,value,buf);
 								fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
@@ -3921,7 +3921,7 @@ static void sigchld_handler(int s) {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-static void getting_key_from_neighbour(char *key, int sock_fd) {
+static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	char *ptr;
 	item *it=NULL;
 	char key_value_str[1024],buf[1024];
@@ -3935,16 +3935,12 @@ static void getting_key_from_neighbour(char *key, int sock_fd) {
             node_info info = get_neighbour_information(key);
             request_neighbour(key,buf,"get",&info);
             fprintf(stderr, "buf is : %s",buf);
-            if(strcmp(buf,"NOT FOUND"))
+            if(strncmp(buf,"NOT FOUND",9))
             {
-                int time;
-                char flag[1024],key2[1024],length[1024],value[1024];
-                deserialize_key_value_str2(key2,flag,&time,length,value,buf);
-                serialize_key_value_str(key2, flag, time, atoi(length),value, buf);
                 fprintf(stderr,"key value str:%s", buf);
-                send(sock_fd, buf, strlen(buf), 0);
+                send(neighbour_fd, buf, strlen(buf), 0);
             }
-            else send(sock_fd,"NOT FOUND",strlen("NOT FOUND"),0);
+            else send(neighbour_fd,"NOT FOUND",strlen("NOT FOUND"),0);
         }
 	}
 	else
@@ -3970,9 +3966,9 @@ static void getting_key_from_neighbour(char *key, int sock_fd) {
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2,
 				ITEM_data(it), key_value_str);
 		fprintf(stderr,"key value str:%s", key_value_str);
-		send(sock_fd, key_value_str, strlen(key_value_str), 0);
+		send(neighbour_fd, key_value_str, strlen(key_value_str), 0);
 	} else {
-		send(sock_fd, "NOT FOUND", 9, 0);
+		send(neighbour_fd, "NOT FOUND", 9, 0);
 	}
 }
 
@@ -4001,6 +3997,7 @@ static void updating_key_from_neighbour(char *key, int flags, int time, int leng
 	if(mode == NORMAL_NODE){
 	    fprintf(stderr,"storing key %s received from neighbour",key);
         store_key_value(key,flags,time,length,value);
+        sprintf(command_to_transfer, "set %s %d %d %d", key,flags,time,length);
         _propagate_update_command_if_required(key);
     }
     else
@@ -4177,11 +4174,8 @@ static void *node_propagation_thread_routine(void *args){
 				perror("recv");
 				exit(1);
 			}
-
-			sscanf(buf, "%s %s %d %d %d %s", cmd, key, &flag, &time, &length,
-					value);
-				sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
-				updating_key_from_neighbour(key,flag,time,length,value);
+                sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
+                updating_key_from_neighbour(key,flag,time,length,value);
     		}
     		else if(!strcmp(buf,"delete"))
 			{
