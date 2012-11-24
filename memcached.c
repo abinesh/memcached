@@ -2928,7 +2928,6 @@ static float distance_squared(Point p1,Point p2){
     float x_component = p1.x  - p2.x;
     float y_component = p1.y  - p2.y;
     return x_component*x_component + y_component*y_component;
-
 }
 
 static void centroid(ZoneBoundary b,Point *c){
@@ -3925,9 +3924,28 @@ static void sigchld_handler(int s) {
 static void getting_key_from_neighbour(char *key, int sock_fd) {
 	char *ptr;
 	item *it=NULL;
-	char key_value_str[1024];
+	char key_value_str[1024],buf[1024];
+	Point resolved_point = key_point(key);
 	if(mode == NORMAL_NODE){
-    	it = item_get(key, strlen(key));
+	    if(is_within_boundary(resolved_point,my_boundary)==1)
+    	    it = item_get(key, strlen(key));
+        else{
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+
+            node_info info = get_neighbour_information(key);
+            request_neighbour(key,buf,"get",&info);
+            fprintf(stderr, "buf is : %s",buf);
+            if(strcmp(buf,"NOT FOUND"))
+            {
+                int time;
+                char flag[1024],key2[1024],length[1024],value[1024];
+                deserialize_key_value_str2(key2,flag,&time,length,value,buf);
+                serialize_key_value_str(key2, flag, time, atoi(length),value, buf);
+                fprintf(stderr,"key value str:%s", buf);
+                send(sock_fd, buf, strlen(buf), 0);
+            }
+            else send(sock_fd,"NOT FOUND",strlen("NOT FOUND"),0);
+        }
 	}
 	else
 	if( mode == SPLITTING_PARENT_INIT ||
@@ -3958,10 +3976,32 @@ static void getting_key_from_neighbour(char *key, int sock_fd) {
 	}
 }
 
+static void _propagate_update_command_if_required(char *key_to_transfer){
+    char to_transfer[1024];
+    char buf[1024];
+    item *it =  it = item_get(key_to_transfer, strlen(key_to_transfer));
+
+    Point resolved_point = key_point(key_to_transfer);
+    if (is_within_boundary(resolved_point, my_boundary) != 1) {
+        fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
+
+        sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
+        node_info info = get_neighbour_information(key_to_transfer);
+        request_neighbour(to_transfer, buf, "set",&info);
+        pthread_mutex_lock(&list_of_keys_lock);
+        mylist_delete(&list_of_keys, key_to_transfer);
+        pthread_mutex_unlock(&list_of_keys_lock);
+    }
+    else {
+        fprintf(stderr,"storing key %s locally\n",key_to_transfer);
+    }
+}
+
 static void updating_key_from_neighbour(char *key, int flags, int time, int length, char* value){
 	if(mode == NORMAL_NODE){
 	    fprintf(stderr,"storing key %s received from neighbour",key);
         store_key_value(key,flags,time,length,value);
+        _propagate_update_command_if_required(key);
     }
     else
     if( mode == SPLITTING_PARENT_INIT ||
@@ -3986,7 +4026,16 @@ static void updating_key_from_neighbour(char *key, int flags, int time, int leng
 
 static void deleting_key_from_neighbour(char *key){
     if(mode == NORMAL_NODE){
-        delete_key_locally(key);
+    	Point resolved_point = key_point(key);
+        if(is_within_boundary(resolved_point,my_boundary)==1){
+            delete_key_locally(key);
+        }
+        else{
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            node_info info = get_neighbour_information(key);
+            char buf[1024];
+            request_neighbour(key,buf,"delete",&info);
+        }
     }
     else
     if( mode == SPLITTING_PARENT_INIT ||
@@ -5206,27 +5255,6 @@ if (c->msgcurr < c->msgused) {
 }
 }
 
-static void _propagate_update_command_if_required(conn *c, char *key_to_transfer){
-    char to_transfer[1024];
-    char buf[1024];
-    item *it =  it = item_get(key_to_transfer, strlen(key_to_transfer));
-
-    Point resolved_point = key_point(key_to_transfer);
-    if (is_within_boundary(resolved_point, my_boundary) != 1) {
-        fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
-
-        sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
-        node_info info = get_neighbour_information(key_to_transfer);
-        request_neighbour(to_transfer, buf, "set",&info);
-        pthread_mutex_lock(&list_of_keys_lock);
-        mylist_delete(&list_of_keys, key_to_transfer);
-        pthread_mutex_unlock(&list_of_keys_lock);
-    }
-    else {
-        fprintf(stderr,"storing key %s locally\n",key_to_transfer);
-    }
-}
-
 int previous_state=-1;
 static void drive_machine(conn *c) {
 bool stop = false;
@@ -5467,7 +5495,7 @@ while (!stop) {
 
 	case conn_write:
 	    if(previous_state == conn_nread){
-            _propagate_update_command_if_required(c,key_to_transfer);
+            _propagate_update_command_if_required(key_to_transfer);
             previous_state = -1;
         }
 		/*
