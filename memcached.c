@@ -3848,6 +3848,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	for (i = 0; i < keys_to_send.size; i++) {
         usleep(1000000);
 		char *key = keys_to_send.array[i];
+		fprintf(stderr,"key to migrate is %s\n",key);
+		fprintf(stderr,"length is %d\n",(int)strlen(key));
 		item *it = item_get(key, strlen(key));
 		ptr = strtok(ITEM_suffix(it), " ");
 		fprintf(stderr, "nbytes---%d", it->nbytes);
@@ -3912,13 +3914,13 @@ static void* _parent_split_migrate_phase(void *arg){
 
 typedef struct tagSplitMigrateKeysArgs{
     int child_fd;
-    pthread_key_t item_lock_type_key;
+    pthread_key_t *item_lock_type_key;
 } split_migrate_key_args;
 
 static void* split_migrate_keys_routine(void *tagArgs){
     split_migrate_key_args *args = tagArgs;
     uint8_t lock_type = ITEM_LOCK_GRANULAR;
-    pthread_setspecific(args->item_lock_type_key, &lock_type);
+    pthread_setspecific(*(args->item_lock_type_key), &lock_type);
     _parent_split_migrate_phase(&args->child_fd);
     return 0;
 }
@@ -4327,6 +4329,11 @@ static void *join_request_listener_thread_routine(void * args) {
 	char s[INET6_ADDRSTRLEN],buf[1024];
     int counter,numbytes;
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
+	if(item_lock_type_key) fprintf(stderr,"lock passed on properly\n");
+	else {
+	    fprintf(stderr,"lock not passed on properly, exiting here\n");
+	    exit(-1);
+	}
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
     my_new_boundary = my_boundary;
 
@@ -4446,10 +4453,10 @@ static void *join_request_listener_thread_routine(void * args) {
         usleep(2000);
         pthread_t split_migrate_keys_thread;
         usleep(3000);
-        split_migrate_key_args args;
-        args.child_fd = new_fd;
-        args.item_lock_type_key = *item_lock_type_key;
-        pthread_create(&split_migrate_keys_thread, 0,split_migrate_keys_routine,(void*)&args);
+        split_migrate_key_args *args=(split_migrate_key_args*)malloc(sizeof(split_migrate_key_args));
+        args->child_fd = new_fd;
+        args->item_lock_type_key = item_lock_type_key;
+        pthread_create(&split_migrate_keys_thread, 0,split_migrate_keys_routine,(void*)args);
 	}
 	return 0;
 }
@@ -4572,7 +4579,7 @@ static void *connect_and_split_thread_routine(void *args) {
 
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
-	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,(void*)&args);
+	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
 
 	return 0;
 }

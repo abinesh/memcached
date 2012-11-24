@@ -122,6 +122,11 @@ void item_unlock_global(void) {
 
 void item_lock(uint32_t hv) {
     uint8_t *lock_type = pthread_getspecific(item_lock_type_key);
+    if(lock_type) fprintf(stderr,"got lock type\n");
+    else {
+        fprintf(stderr,"did not get lock type\n");
+        exit(-1);
+    }
     if (likely(*lock_type == ITEM_LOCK_GRANULAR)) {
         mutex_lock(&item_locks[(hv & hashmask(hashpower)) % item_lock_count]);
     } else {
@@ -779,6 +784,12 @@ static pthread_t node_propagation_listener_thread;
 static void connect_to_join_server(void *(*joining_thread_routine)(void *))
 {
     static_joining_thread_routine = joining_thread_routine;
+    pthread_key_t* aa = &item_lock_type_key;
+    if(aa) fprintf(stderr,"lock type is correct here, passing it on\n");
+    else {
+        fprintf(stderr,"lock type is not correct here, should not go beyond this\n");
+        exit(-1);
+    }
 	pthread_create(&connect_and_split_thread, 0,wrapper_routine_for_child,&item_lock_type_key);
 	//pthread_join(connect_and_split_thread,NULL);
 }
