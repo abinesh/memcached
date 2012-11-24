@@ -43,24 +43,24 @@ def get_key(node, key, expected_value, expected_flag=0):
     assert actual_value == expected_value, "GET %s: Expected:%s, Actual:%s" % (key, expected_value, actual_value)
 
 
-def insert_keys(node, count, flag=0, exptime=5000, value="abcde"):
+def insert_keys(node, count, flag=0, exptime=5000, value="abcde", keyprefix="key"):
     for i in range(count + 1):
-        key = "key%d" % i
+        key = "%s%d" % (keyprefix, i)
         print "inserting key %s\n" % key
         delete_key(node, key)
         set_key(node, key, flag, exptime, value)
 
 
-def read_keys(node, count):
+def read_keys(node, count, keyprefix="key"):
     for i in range(count + 1):
-        key = "key%d" % i
+        key = "%s%d" % (keyprefix, i)
         print "getting key %s\n" % key
         get_key(node, key, "abcde")
 
 
-def delete_keys(node, count):
+def delete_keys(node, count, keyprefix="key"):
     for i in range(count + 1):
-        key = "key%d" % i
+        key = "%s%d" % (keyprefix, i)
         print "deleting key %s\n" % key
         delete_key(node, key)
 
