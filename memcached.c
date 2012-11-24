@@ -4238,7 +4238,7 @@ static void *join_request_listener_thread_routine(void * args) {
 		fprintf(stderr, "in join_request_listener_thread_routine ");
 
 	int MAXDATASIZE=1024;
-	int new_fd; // listen on sock_fd, new connection on new_fd
+	int sockfd,new_fd; // listen on sock_fd, new connection on new_fd
 	struct sockaddr_storage their_addr; // connector's address information
 	socklen_t sin_size;
 	struct sigaction sa;
@@ -4248,10 +4248,10 @@ static void *join_request_listener_thread_routine(void * args) {
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
     my_new_boundary = my_boundary;
 
-    int port = find_port(&me.sock_desc_join_request);
+    int port = find_port(&sockfd);
 	sprintf(me.join_request,"%d",port);
 
-	if (listen(me.sock_desc_join_request, BACKLOG) == -1) {
+	if (listen(sockfd, BACKLOG) == -1) {
 		perror("listen");
 		exit(1);
 	}
@@ -4268,7 +4268,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	while (1) { // main accept() loop
     	fprintf(stderr,"join_request_listener_thread_routine : server: waiting for connections...\n");
 		sin_size = sizeof their_addr;
-		new_fd = accept(me.sock_desc_join_request, (struct sockaddr *) &their_addr, &sin_size);
+		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
 
 		if (new_fd == -1) {
 			perror("accept");

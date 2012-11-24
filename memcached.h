@@ -613,12 +613,11 @@ typedef struct tagList{
     char **array;
 }my_list;
 
-typedef struct tagPortNumbers{
+typedef struct tag_node_info{
 	ZoneBoundary boundary;
     char join_request[10];
     char request_propogation[10];
     char node_removal[10];
-    int sock_desc_join_request;
 
 }node_info;
 node_info me, neighbour[10];
