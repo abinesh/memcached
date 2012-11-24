@@ -4221,6 +4221,28 @@ static ZoneBoundary* _merge_boundaries(ZoneBoundary *a, ZoneBoundary *b) {
 	return result;
 }
 
+static void remove_from_neighbour_list(ZoneBoundary *a){
+	int counter;
+		for(counter=0;counter<10;counter++)
+					{
+						if(neighbour[counter].boundary.from.x==a->from.x && neighbour[counter].boundary.from.y==a->from.y &&
+								neighbour[counter].boundary.to.x==a->to.x && neighbour[counter].boundary.to.y==a->to.y)
+						{
+							fprintf(stderr,"\n---removing neighbour from list\n");
+							fprintf(stderr,"\n---%f,%f,%f,%f\n",a->from.x ,a->from.y,a->to.x,a->to.y);
+							neighbour[counter].boundary.from.x=0;
+							neighbour[counter].boundary.from.y=0;
+							neighbour[counter].boundary.to.x=0;
+							neighbour[counter].boundary.to.y=0;
+							strcpy(neighbour[counter].node_removal,"NULL");
+							strcpy(neighbour[counter].request_propogation,"NULL");
+							break;
+						}
+						else
+							continue;
+					}
+
+}
 
 static void *node_removal_listener_thread_routine(void *args) {
 	if (settings.verbose > 1)
@@ -4284,8 +4306,11 @@ static void *node_removal_listener_thread_routine(void *args) {
             close(new_fd);
 
             mode = NORMAL_NODE;
+            remove_from_neighbour_list(child_boundary);
             fprintf(stderr,"Mode changed: MERGING_PARENT_MIGRATING -> NORMAL_NODE\n");
+
         }
+
 }
 
 
@@ -4624,6 +4649,7 @@ static void process_die_command(conn *c) {
 	char s[INET6_ADDRSTRLEN];
 	my_list keys_to_send;
 	node_info *found_neighbour;
+	char buf[1024];
 
 	found_neighbour = (node_info*) malloc(sizeof(node_info));
 
@@ -4694,6 +4720,8 @@ static void process_die_command(conn *c) {
 	fprintf(stderr, "Trashing keys in parent and child:\n");
 	_trash_keys_in_both_nodes(sockfd, trash_both);
 
+
+	serialize_boundary(my_boundary,buf);
 	out_string(c, "Die command complete\r\n");
 	close(sockfd);
 	exit(0);
