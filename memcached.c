@@ -6392,6 +6392,65 @@ if (ever != NULL ) {
 return true;
 }
 
+static void connect_to_bootstrap(char *optarg){
+	int MAXDATASIZE=1024;
+	int sockfd=0, numbytes;
+	char buf[MAXDATASIZE];
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	fprintf(stderr,"\nJ2 is:%s\n",optarg);
+
+
+	if ((rv = getaddrinfo("localhost", "11311", &hints, &servinfo)) != 0) {
+	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+	//return (void)1;
+	}
+	// loop through all the results and connect to the first we can
+
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+		p->ai_protocol)) == -1) {
+			perror("client: socket");
+			continue;
+		}
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("client: connect");
+			continue;
+		}
+	break;
+	}
+
+	if (p == NULL) {
+	fprintf(stderr, "client: failed to connect\n");
+	//return (void)2;
+	}
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+	s, sizeof s);
+
+	printf("client: connecting to %s\n", s);
+
+	freeaddrinfo(servinfo); // all done with this structure
+
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+	perror("recv");
+	exit(1);
+	}
+
+	buf[numbytes] = '\0';
+	printf("client: received '%s'\n",buf);
+	close(sockfd);
+
+}
+
+
 int main(int argc, char **argv) {
 int c,i;
 bool lock_memory = false;
@@ -6405,6 +6464,7 @@ struct rlimit rlim;
 char unit = '\0';
 int size_max = 0;
 int retval = EXIT_SUCCESS;
+char temp[255];
 /* listening sockets */
 static int *l_socket = NULL;
 
@@ -6472,12 +6532,15 @@ while (-1 != (c = getopt(argc, argv, "a:" /* access mask for unix socket */
 		"X:" /* upper x coordinate */
 		"Y:" /* upper y coordinate */
 		"j:" /*IP address and port number of the node to join with */
+		"J:" /*Connecting to bootstrap*/
 ))) {
 	switch (c) {
 	case 'A':
 		/* enables "shutdown" command */
 		settings.shutdown_command = true;
 		break;
+
+
 	case 'x':
 		my_boundary.from.x = atof(optarg);
 		world_boundary.from.x = my_boundary.from.x;
@@ -6503,7 +6566,10 @@ while (-1 != (c = getopt(argc, argv, "a:" /* access mask for unix socket */
 		strcpy(join_server_port_number, ptr);
 
 		break;
-
+	case 'J':
+		strcpy(temp,optarg);
+		connect_to_bootstrap(temp);
+		break;
 	case 'a':
 		/* access for unix domain socket, as octal mask (like chmod)*/
 		settings.access = strtol(optarg, NULL, 8);
@@ -6882,6 +6948,8 @@ pthread_mutex_unlock(&list_of_keys_lock);
 /* start up worker threads if MT mode */
 if (is_new_joining_node == 0) {
 	mode = NORMAL_NODE;
+
+
 	fprintf(stderr, "Mode set as : NORMAL_NODE\n");
 
 	for(i =0 ;i < 10 ;i++)
