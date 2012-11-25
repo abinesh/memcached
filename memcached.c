@@ -2858,8 +2858,6 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	fprintf(stderr, "------------------%s--------------",
-			neighbour->request_propogation);
 	if ((rv = getaddrinfo("localhost", neighbour->request_propogation, &hints,
 			&servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -2949,7 +2947,6 @@ static node_info get_neighbour_information(char *key)
             bounds=neighbour[counter].boundary;
             if(is_within_boundary(resolved_point,bounds)==1)
             {
-                fprintf(stderr,"\n------np value:%s-------------\n",neighbour[counter].request_propogation);
                 return neighbour[counter];
             }
             else {
@@ -3841,6 +3838,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	fprintf(stderr, "The list of keys to be sent:\n");
 	mylist_print(&keys_to_send);
 
+	//v imp sleep
+	usleep(10000*5);
 	sprintf(buf, "%d", keys_to_send.size);
 	if (send(another_node_fd, buf, strlen(buf), 0) == -1)
 		perror("send");
@@ -3856,8 +3855,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes,
 				ITEM_data(it), key_value_str);
 		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
-		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
 		delete_key_locally(key);
+		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
 	}
 }
 
@@ -3880,6 +3879,27 @@ static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
 }
 
 
+static void print_neighbour_list(){
+int counter;
+	for(counter=0;counter<10;counter++)
+		{
+			if(strcmp(neighbour[counter].node_removal,"NULL") && strcmp(neighbour[counter].request_propogation,"NULL"))
+			{
+				fprintf(stderr,"\nneighbours are:\n");
+				fprintf(stderr,"\ncounter:%d\n",counter);
+
+				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.from.x);
+				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.from.y);
+				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.to.x);
+				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.to.y);
+
+				fprintf(stderr,"\n%s\n",neighbour[counter].request_propogation);
+				fprintf(stderr,"\n%s\n",neighbour[counter].node_removal);
+			}
+		}
+}
+
+
 static void* _parent_split_migrate_phase(void *arg){
     int i=0;
     my_list keys_to_send;
@@ -3894,7 +3914,10 @@ static void* _parent_split_migrate_phase(void *arg){
         char *key = list_of_keys.array[i];
         Point resolved_point = key_point(key);
         if (is_within_boundary(resolved_point, client_boundary) == 1)
+        {
             mylist_add(&keys_to_send, key);
+            print_boundaries(client_boundary);
+        }
     }
     pthread_mutex_unlock(&list_of_keys_lock);
 
@@ -4318,10 +4341,78 @@ static void *node_removal_listener_thread_routine(void *args) {
 
 
 
+static int sending_parents_neighbours_to_child(int new_fd){
+	char boundary_str[1024],port_number_str[1024];
+	int counter;
+	int flag=0;
+	for(counter=0;counter<10;counter++)
+	{
+		if(neighbour[counter].boundary.from.x > my_new_boundary.from.x)
+		{
+			flag=1;
+			fprintf(stderr,"\nsending neighbour boundary from parent to be updated in clients neighbour list:%f,%f\n",neighbour[counter].boundary.from.x , my_new_boundary.from.x);
+	        serialize_boundary(neighbour[counter].boundary,boundary_str);
+	        send(new_fd,boundary_str,strlen(boundary_str),0);
+	        usleep(1000);
+	        serialize_port_numbers(neighbour[counter].request_propogation,neighbour[counter].node_removal,port_number_str);
+	        send(new_fd,port_number_str,strlen(port_number_str),0);
+	        remove_from_neighbour_list(&neighbour[counter].boundary);
+	        return counter;
+
+		}
+	}
+	if(flag==0)
+	{
+	    send(new_fd,"NONE",4,0);
+	    return -1;
+	}
+	return -1;
+}
+
+static void receiving_from_parents_parents_neighbours(int new_sockfd){
+	char buf[1024],propagation_port_number[1024],removal_port_number[1024];
+	int counter;
+	ZoneBoundary *boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
+
+
+
+	recv(new_sockfd, buf,1024, 0);
+	fprintf(stderr,"receiving from parent1:%s",buf);
+	if(strcmp(buf,"NONE"))
+	{
+		deserialize_boundary(buf,boundary);
+
+		memset(buf,'\0',1024);
+		recv(new_sockfd, buf, 1024, 0);
+		fprintf(stderr,"receiving from parent2:%s",buf);
+		deserialize_port_numbers2(buf,propagation_port_number,removal_port_number);
+		fprintf(stderr,"receiving from parent3:%s,%s",propagation_port_number,removal_port_number);
+
+
+		for(counter=0;counter<10;counter++)
+		{
+			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
+			{
+				neighbour[counter].boundary.from.x=boundary->from.x;
+				neighbour[counter].boundary.from.y=boundary->from.y;
+				neighbour[counter].boundary.to.x=boundary->to.x;
+				neighbour[counter].boundary.to.y=boundary->to.y;
+				sprintf(neighbour[counter].request_propogation,"%s",propagation_port_number);
+				sprintf(neighbour[counter].node_removal,"%s",removal_port_number);
+				break;
+			}
+		}
+	}
+
+}
+
+
+
 static void *join_request_listener_thread_routine(void * args) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "in join_request_listener_thread_routine ");
 
+	//int entry_to_delete;
 	int MAXDATASIZE=1024;
 	int sockfd,new_fd; // listen on sock_fd, new connection on new_fd
 	struct sockaddr_storage their_addr; // connector's address information
@@ -4428,6 +4519,7 @@ static void *join_request_listener_thread_routine(void * args) {
 				== -1)
 			perror("send");
 
+
 		//receiving client port num
 	    memset(buf, '\0', 1024);
 	    if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
@@ -4438,7 +4530,13 @@ static void *join_request_listener_thread_routine(void * args) {
 	      deserialize_port_numbers2(buf,neighbour_request_propogation,
 	                neighbour_node_removal);
 
-			for(counter=0;counter<10;counter++)
+
+
+
+	      	sending_parents_neighbours_to_child(new_fd);
+
+
+	      for(counter=0;counter<10;counter++)
 			{
 				if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
 				{
@@ -4447,9 +4545,19 @@ static void *join_request_listener_thread_routine(void * args) {
 					sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
 					break;
 				}
-				else
-					continue;
+
 			}
+
+
+
+
+
+
+
+
+
+
+
 
         usleep(2000);
         pthread_t split_migrate_keys_thread;
@@ -4458,6 +4566,9 @@ static void *join_request_listener_thread_routine(void * args) {
         args->child_fd = new_fd;
         args->item_lock_type_key = item_lock_type_key;
         pthread_create(&split_migrate_keys_thread, 0,split_migrate_keys_routine,(void*)args);
+	    print_neighbour_list();
+
+
 	}
 	return 0;
 }
@@ -4557,7 +4668,6 @@ static void *connect_and_split_thread_routine(void *args) {
 				neighbour[counter].boundary=neighbour_boundary;
 				sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
 				sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
-				print_boundaries(neighbour[counter].boundary);
 				break;
 			}
 			else
@@ -4565,12 +4675,16 @@ static void *connect_and_split_thread_routine(void *args) {
 		}
 
 
-	    memset(buf, '\0', 1024);
+
+		memset(buf, '\0', 1024);
 		serialize_port_numbers(me.request_propogation, me.node_removal,buf);
 		usleep(1000);
 		fprintf(stderr,"\nsending client portnumbers:%s\n",buf);
 		if (send(sockfd, buf, strlen(buf), 0)== -1)
 				perror("send");
+
+		receiving_from_parents_parents_neighbours(sockfd);
+
 
     mode = SPLITTING_CHILD_MIGRATING;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_INIT -> SPLITTING_CHILD_MIGRATING\n");
@@ -4581,6 +4695,7 @@ static void *connect_and_split_thread_routine(void *args) {
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
+	print_neighbour_list();
 
 	return 0;
 }
