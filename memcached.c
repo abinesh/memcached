@@ -4414,12 +4414,17 @@ static void *join_request_listener_thread_routine(void * args) {
 
 	//int entry_to_delete;
 	int MAXDATASIZE=1024;
-	int sockfd,new_fd; // listen on sock_fd, new connection on new_fd
+	int sockfd=0,new_fd; // listen on sock_fd, new connection on new_fd
 	struct sockaddr_storage their_addr; // connector's address information
 	socklen_t sin_size;
 	struct sigaction sa;
 	char s[INET6_ADDRSTRLEN],buf[1024];
     int counter,numbytes;
+   	struct addrinfo hints, *servinfo, *p;
+   	int rv;
+
+
+
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
 	if(item_lock_type_key) fprintf(stderr,"lock passed on properly\n");
 	else {
@@ -4429,8 +4434,36 @@ static void *join_request_listener_thread_routine(void * args) {
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
     my_new_boundary = my_boundary;
 
-    int port = find_port(&sockfd);
-	sprintf(me.join_request,"%d",port);
+
+    fprintf(stderr,"\nin join req....me.joinport:%s\n",me.join_request);
+
+
+	if ((rv = getaddrinfo("localhost", me.join_request, &hints, &servinfo)) != 0) {
+				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+				//return 1;
+		}
+
+		// loop through all the results and bind to the first we can
+		for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+					perror("listener: socket");
+					continue;
+			}
+			if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+				close(sockfd);
+				perror("listener: bind");
+				continue;
+			}
+			break;
+		}
+		if (p == NULL) {
+			fprintf(stderr, "listener: failed to bind socket\n");
+			//return 2;
+		}
+
+
+
 
 	if (listen(sockfd, BACKLOG) == -1) {
 		perror("listen");
@@ -6448,6 +6481,7 @@ static void connect_to_bootstrap(char *optarg){
 	printf("client: received '%s'\n",buf);
 	close(sockfd);
 
+	sprintf(me.join_request,"%s",buf);
 }
 
 
