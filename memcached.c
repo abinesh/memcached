@@ -4608,6 +4608,69 @@ static void *join_request_listener_thread_routine(void * args) {
 }
 
 
+static void connect_to_bootstrap2(){
+	int sockfd=0;
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+	char str[1024];
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	fprintf(stderr,"\nJ2 is:%s\n",optarg);
+
+	strcpy(join_server_ip_address,"localhost");
+
+
+	if ((rv = getaddrinfo("localhost", "11312", &hints, &servinfo)) != 0) {
+	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+	//return (void)1;
+	}
+	// loop through all the results and connect to the first we can
+
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+		p->ai_protocol)) == -1) {
+			perror("client: socket");
+			continue;
+		}
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("client: connect");
+			continue;
+		}
+	break;
+	}
+
+	if (p == NULL) {
+	fprintf(stderr, "client: failed to connect\n");
+	//return (void)2;
+	}
+
+
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+	s, sizeof s);
+
+	printf("client: connecting to %s\n", s);
+
+	freeaddrinfo(servinfo); // all done with this structure
+
+
+    serialize_boundary(my_boundary,str);
+
+    fprintf(stderr,"\n-----------------------------------------------------my boundaries to bootstrap:%s\n",str);
+
+   send(sockfd,str,strlen(str),0);
+
+	close(sockfd);
+
+
+}
+
+
 static void *connect_and_split_thread_routine(void *args) {
 	int sockfd, numbytes;
 	int MAXDATASIZE = 1024;
@@ -4616,7 +4679,6 @@ static void *connect_and_split_thread_routine(void *args) {
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	int counter;
-	char str[255];
 
 	char neighbour_request_propogation[1024],
     neighbour_node_removal[1024];//, me_request_propogation[1024],
@@ -4732,15 +4794,7 @@ static void *connect_and_split_thread_routine(void *args) {
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
 
-    //sending to bootstrap
-    serialize_boundary(my_boundary,str);
-
-    fprintf(stderr,"\n-----------------------------------------------------my boundaries to bootstrap:%s\n",str);
-
-   send(boot_strap_socket,str,strlen(str),0);
-
-    //usleep(1000);
-    //
+    connect_to_bootstrap2();
 
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
 	print_neighbour_list();
