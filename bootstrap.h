@@ -1,3 +1,4 @@
+#include <pthread.h>
 
 typedef struct tagPoint{
     float x;

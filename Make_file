@@ -1,6 +1,5 @@
 all: bootstrap
 bootstrap:bootstrap.c
-	gcc -o bootstrap bootstrap.c
+	gcc -o bootstrap bootstrap.c -lpthread
 
-	
 

@@ -152,12 +152,28 @@ static int find_node_to_join(){
 
 }
 
+static void save_port_number(int port){
+	int counter;
+
+	for(counter=0;counter<10;counter++)
+	{
+		if(!strcmp(nodes[0].join_request,"NULL"))
+		{
+			printf("This is first node");
+			sprintf(nodes[counter].join_request,"%d",port);
+			break;
+		}
+	}
+
+
+
+}
 
 
 
 
 
-static int start_listening(){
+static void *start_listening(void *arg){
 int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
 struct addrinfo hints, *servinfo, *p;
 struct sockaddr_storage their_addr; // connector's address information
@@ -173,11 +189,12 @@ hints.ai_flags = AI_PASSIVE; // use my IP
 int port;
 char portnum[255];
 char str[1024];
-int first_node;
+int first_node,numbytes;
+char buf[1024];
 
 if ((rv = getaddrinfo("localhost", PORT, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-	return 1;
+	return (void *)1;
 }
 // loop through all the results and bind to the first we can
 
@@ -202,7 +219,7 @@ for(p = servinfo; p != NULL; p = p->ai_next) {
 
 	if (p == NULL) {
 		fprintf(stderr, "server: failed to bind\n");
-		return 2;
+		return (void *)2;
 	}
 
 	freeaddrinfo(servinfo); // all done with this structure
@@ -266,11 +283,18 @@ for(p = servinfo; p != NULL; p = p->ai_next) {
 		else{
 
 			port=find_node_to_join();
+			save_port_number(port);
 			sprintf(portnum,"%s %d","NOTFIRST",port);
 			send(new_fd,portnum,strlen(portnum), 0);
 		}
 
+		memset(buf, '\0', 1024);
+		if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
+			perror("rec");
+			exit(1);
+		}
 
+		fprintf(stderr,"\nbuf got from client is:%s\n",buf);
 
 
 
@@ -303,8 +327,12 @@ int main(void){
 			nodes[i].boundary.to.y=0;
 		}
 
+pthread_t join_request_listening_thread1;
+//pthread_t join_request_listening_thread2;
 
-	start_listening();
+pthread_create(&join_request_listening_thread1, 0,start_listening,NULL);
+pthread_join(join_request_listening_thread1,NULL);
+	//start_listening();
 
   return 0;
 }

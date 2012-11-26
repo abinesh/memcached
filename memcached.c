@@ -123,6 +123,7 @@ static enum transmit_result transmit(conn *c);
 //IP address and port number of join node
 static char join_server_port_number[255];
 static char join_server_ip_address[255];
+static int boot_strap_socket;
 
 static int is_new_joining_node = 0;
 static my_list list_of_keys;
@@ -4615,6 +4616,7 @@ static void *connect_and_split_thread_routine(void *args) {
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 	int counter;
+	char str[255];
 
 	char neighbour_request_propogation[1024],
     neighbour_node_removal[1024];//, me_request_propogation[1024],
@@ -4729,8 +4731,21 @@ static void *connect_and_split_thread_routine(void *args) {
 
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
+
+    //sending to bootstrap
+    serialize_boundary(my_boundary,str);
+
+    fprintf(stderr,"\n-----------------------------------------------------my boundaries to bootstrap:%s\n",str);
+
+   send(boot_strap_socket,str,strlen(str),0);
+
+    //usleep(1000);
+    //
+
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
 	print_neighbour_list();
+
+//	 send(boot_strap_socket,str,strlen(str),0);
 
 	return 0;
 }
@@ -6471,13 +6486,15 @@ static void connect_to_bootstrap(char *optarg){
 	//return (void)2;
 	}
 
+	boot_strap_socket = sockfd;
+
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
 	s, sizeof s);
 
 	printf("client: connecting to %s\n", s);
 
 	freeaddrinfo(servinfo); // all done with this structure
-
+//receiving join req port
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 	perror("recv");
 	exit(1);
@@ -6489,6 +6506,7 @@ static void connect_to_bootstrap(char *optarg){
 
 	sprintf(me.join_request,"%s",buf);
 
+	//receiving world boundaries
 	memset(buf,'\0',1024);
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 		perror("recv");
@@ -6501,7 +6519,7 @@ static void connect_to_bootstrap(char *optarg){
 	my_boundary=world_boundary;
 
 
-
+////receiving whom to connect
 	memset(buf,'\0',1024);
 		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 			perror("recv");
