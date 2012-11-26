@@ -4624,6 +4624,8 @@ static void *connect_and_split_thread_routine(void *args) {
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
+
+	fprintf(stderr,"\nIn connect_and_split\n:%s",join_server_port_number);
 	if ((rv = getaddrinfo(join_server_ip_address, join_server_port_number,
 			&hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -6432,12 +6434,16 @@ static void connect_to_bootstrap(char *optarg){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
+	char buf2[255];
+	int temp;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
 	fprintf(stderr,"\nJ2 is:%s\n",optarg);
+
+	strcpy(join_server_ip_address,"localhost");
 
 
 	if ((rv = getaddrinfo("localhost", "11311", &hints, &servinfo)) != 0) {
@@ -6479,9 +6485,44 @@ static void connect_to_bootstrap(char *optarg){
 
 	buf[numbytes] = '\0';
 	printf("client: received '%s'\n",buf);
-	close(sockfd);
+
 
 	sprintf(me.join_request,"%s",buf);
+
+	memset(buf,'\0',1024);
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+		}
+
+	printf("client: received '%s'\n",buf);
+
+	deserialize_boundary(buf,&world_boundary);
+	my_boundary=world_boundary;
+
+
+
+	memset(buf,'\0',1024);
+		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+			}
+		printf("client: received '%s'\n",buf);
+		sscanf(buf,"%s %d",buf2,&temp);
+		printf("client: received buf2:'%s'\n",buf2);
+		if(!strcmp(buf2,"NOTFIRST"))
+		{
+			sprintf(join_server_port_number,"%d",temp);
+
+			fprintf(stderr,"\njoin server p num:%s\n",join_server_port_number);
+			is_new_joining_node=1;
+		}
+
+
+
+	close(sockfd);
+
+
 }
 
 
