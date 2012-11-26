@@ -4517,6 +4517,10 @@ static void *join_request_listener_thread_routine(void * args) {
         my_new_boundary.to.x = x1 + (x2 - x1) / 2;
         my_new_boundary.to.y = y2;
 
+
+
+
+
         if (settings.verbose > 1) {
             fprintf(stderr, "Client boundary");
             print_boundaries(client_boundary);
@@ -4584,15 +4588,6 @@ static void *join_request_listener_thread_routine(void * args) {
 
 
 
-
-
-
-
-
-
-
-
-
         usleep(2000);
         pthread_t split_migrate_keys_thread;
         usleep(3000);
@@ -4613,7 +4608,8 @@ static void connect_to_bootstrap2(){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
-	char str[1024];
+	char str[1024],str2[1024];
+	char parent_boundary_str[1024];
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -4661,9 +4657,28 @@ static void connect_to_bootstrap2(){
 
     serialize_boundary(my_boundary,str);
 
-    fprintf(stderr,"\n-----------------------------------------------------my boundaries to bootstrap:%s\n",str);
+//sending my boundary
+    send(sockfd,str,strlen(str),0);
 
-   send(sockfd,str,strlen(str),0);
+    usleep(1000);
+
+  //sending my join req port number
+    sprintf(str2,"%s",me.join_request);
+
+   send(sockfd,str2,strlen(str2),0);
+
+
+
+   print_boundaries(neighbour_boundary);
+   serialize_boundary(parent, parent_boundary_str);
+
+   //sending parent bondary
+   usleep(1000);
+   send(sockfd,parent_boundary_str,strlen(parent_boundary_str),0);
+
+   //sending parent join req port
+   usleep(1000);
+      send(sockfd,join_server_port_number,strlen(join_server_port_number),0);
 
 	close(sockfd);
 
@@ -4744,6 +4759,8 @@ static void *connect_and_split_thread_routine(void *args) {
 		}
 
 		deserialize_boundary(buf, &neighbour_boundary);
+
+		parent=neighbour_boundary;
 
 		fprintf(stderr, "client received neighbours boundary\n");
 

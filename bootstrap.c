@@ -124,7 +124,6 @@ static float calculate_area(ZoneBoundary bounds)
 	float area;
 
 	area= (to.x - from.x)* (to.y-from.y);
-	fprintf(stderr,"%f",(to.x - from.x)*(to.y-from.y));
 	return area;
 }
 
@@ -158,11 +157,33 @@ static void save_port_number(int port){
 
 	for(counter=0;counter<10;counter++)
 	{
-		if(!strcmp(nodes[0].join_request,"NULL"))
+		if(!strcmp(nodes[counter].join_request,"NULL"))
 		{
-			printf("This is first node");
 			sprintf(nodes[counter].join_request,"%d",port);
 			break;
+		}
+	}
+
+
+
+}
+
+
+static void print_port_number(){
+	int counter;
+
+	for(counter=0;counter<10;counter++)
+	{
+		if(strcmp(nodes[counter].join_request,"NULL"))
+		{
+			fprintf(stderr,"\nPort num:%s\n",nodes[counter].join_request);
+
+
+			fprintf(stderr,"\n%f\n",nodes[counter].boundary.from.x);
+			fprintf(stderr,"\n%f\n",nodes[counter].boundary.from.y);
+			fprintf(stderr,"\n%f\n",nodes[counter].boundary.to.x);
+			fprintf(stderr,"\n%f\n",nodes[counter].boundary.to.y);
+
 		}
 	}
 
@@ -187,7 +208,7 @@ memset(&hints, 0, sizeof hints);
 hints.ai_family = AF_UNSPEC;
 hints.ai_socktype = SOCK_STREAM;
 hints.ai_flags = AI_PASSIVE; // use my IP
-int port;
+int port,port_to_join;
 char portnum[255];
 char str[1024];
 int first_node,numbytes;
@@ -271,7 +292,6 @@ for(p = servinfo; p != NULL; p = p->ai_next) {
 
 //sending whom to connect
 		first_node=check();
-		printf("\nfirst node is:%d\n",first_node);
 		if(first_node==1)
 		{
 
@@ -283,30 +303,41 @@ for(p = servinfo; p != NULL; p = p->ai_next) {
 		}
 		else{
 
-			port=find_node_to_join();
+			port_to_join=find_node_to_join();
 			save_port_number(port);
-			sprintf(portnum,"%s %d","NOTFIRST",port);
+			sprintf(portnum,"%s %d","NOTFIRST",port_to_join);
 			send(new_fd,portnum,strlen(portnum), 0);
 		}
-
-		/*memset(buf, '\0', 1024);
-		if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
-			perror("rec");
-			exit(1);
-		}
-
-		fprintf(stderr,"\nbuf got from client is:%s\n",buf);
-*/
-
-
-
-
 
 		close(new_fd); // parent doesn't need this
 	}
 
 
 
+}
+
+
+
+static void deserialize_boundary(char *s, ZoneBoundary *b) {
+	sscanf(s, "[(%f,%f) to (%f,%f)]", &(b->from.x), &(b->from.y), &(b->to.x),
+			&(b->to.y));
+}
+
+
+static void save_boundaries(char *port_number,ZoneBoundary *my_boundary){
+	int counter;
+	for(counter=0;counter<10;counter++)
+	{
+		if(!strcmp(nodes[counter].join_request,port_number))
+		{
+			nodes[counter].boundary.from.x=my_boundary->from.x;
+			nodes[counter].boundary.from.y=my_boundary->from.y;
+			nodes[counter].boundary.to.x=my_boundary->to.x;
+			nodes[counter].boundary.to.y=my_boundary->to.y;
+
+			break;
+		}
+	}
 }
 
 static void *start_listening2(void *arg){
@@ -326,7 +357,11 @@ int port;
 char portnum[255];
 char str[1024];
 int first_node,numbytes;
-char buf[1024];
+char buf[1024],port_number[255],boundary[1024],parent_port_number[255];
+ZoneBoundary *my_boundary;
+my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
+ZoneBoundary *parent_boundary;
+parent_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
 
 if ((rv = getaddrinfo("localhost", PORT2, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -386,20 +421,51 @@ for(p = servinfo; p != NULL; p = p->ai_next) {
 
 		printf("server: got connection from %s\n", s);
 
-
+		//receiving child boundary
 		memset(buf, '\0', 1024);
 		if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
 			perror("rec");
 			exit(1);
 		}
 
-		fprintf(stderr,"\nbuf got from client is:%s\n",buf);
+		deserialize_boundary(buf,my_boundary);
+
+		//receiving child port number
+		memset(buf, '\0', 1024);
+		if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
+					perror("rec");
+					exit(1);
+				}
 
 
+		sscanf(buf,"%s",port_number);
 
 
+	   save_boundaries(port_number,my_boundary);
+
+	   //receiving parent boundary
+	   memset(buf, '\0', 1024);
+	   if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
+	   		perror("rec");
+	   		exit(1);
+	 				}
 
 
+	 deserialize_boundary(buf,parent_boundary);
+
+
+	 //receiving parent port
+	  memset(buf, '\0', 1024);
+		   if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
+		   		perror("rec");
+		   		exit(1);
+		 				}
+
+     sscanf(buf,"%s",parent_port_number);
+
+     save_boundaries(parent_port_number,parent_boundary);
+
+	   print_port_number();
 		close(new_fd); // parent doesn't need this
 	}
 
