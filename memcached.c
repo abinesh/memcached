@@ -4438,7 +4438,10 @@ static void *join_request_listener_thread_routine(void * args) {
    	struct addrinfo hints, *servinfo, *p;
    	int rv;
 
-
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = INADDR_ANY;
 
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
 	if(item_lock_type_key) fprintf(stderr,"lock passed on properly\n");
