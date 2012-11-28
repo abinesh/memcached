@@ -4452,9 +4452,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
     my_new_boundary = my_boundary;
 
-
     fprintf(stderr,"\nin join req....me.joinport:%s\n",me.join_request);
-
 
 	if ((rv = getaddrinfo("localhost", me.join_request, &hints, &servinfo)) != 0) {
 				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -4479,9 +4477,6 @@ static void *join_request_listener_thread_routine(void * args) {
 			fprintf(stderr, "listener: failed to bind socket\n");
 			//return 2;
 		}
-
-
-
 
 	if (listen(sockfd, BACKLOG) == -1) {
 		perror("listen");

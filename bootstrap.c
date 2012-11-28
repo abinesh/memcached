@@ -163,17 +163,17 @@ static void save_port_number(int port){
 
 static void print_port_number(){
 	int counter;
-
+    fprintf(stderr,"List of nodes in the cluster:\n");
 	for(counter=0;counter<10;counter++)
 	{
 		if(strcmp(nodes[counter].join_request,"NULL"))
 		{
-			fprintf(stderr,"\nPort num:%s\n",nodes[counter].join_request);
-			fprintf(stderr,"\n%f\n",nodes[counter].boundary.from.x);
-			fprintf(stderr,"\n%f\n",nodes[counter].boundary.from.y);
-			fprintf(stderr,"\n%f\n",nodes[counter].boundary.to.x);
-			fprintf(stderr,"\n%f\n",nodes[counter].boundary.to.y);
-
+		    fprintf(stderr,"\t%d: (%d,[(%f,%f) to (%f,%f)])\n",
+		            (counter+1),nodes[counter].join_request,
+		            nodes[counter].boundary.from.x,
+		            nodes[counter].boundary.from.y,
+		            nodes[counter].boundary.to.x,
+		            nodes[counter].boundary.to.y);
 		}
 	}
 }
