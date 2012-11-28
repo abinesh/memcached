@@ -2852,48 +2852,51 @@ static void *get_in_addr(struct sockaddr *sa) {
 	return &(((struct sockaddr_in6*) sa)->sin6_addr);
 }
 
+
+static int connect_to(char *ip_address,char *port,char *caller){
+    int sockfd;
+    struct addrinfo hints, *servinfo, *p;
+    int rv;
+    char s[INET6_ADDRSTRLEN];
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((rv = getaddrinfo(ip_address, port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return -1;
+    }
+    for (p = servinfo; p != NULL ; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            fprintf(stderr,"In %s",caller);
+            perror("client: socket");
+            continue;
+        }
+        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            fprintf(stderr,"In %s",caller);
+            perror("client: connect");
+            continue;
+        }
+        break;
+    }
+
+    if (p == NULL ) {
+        fprintf(stderr, "%s : client: failed to connect\n",caller);
+        exit(-1);
+    }
+
+    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s, sizeof s);
+    fprintf(stderr,"%s : client: connecting to %s:%s\n", caller,s,port);
+    freeaddrinfo(servinfo);
+    return sockfd;
+}
+
 static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour) {
 	int sockfd;
 	int MAXDATASIZE = 1024;
-	//char buf[MAXDATASIZE];
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
-	//int numbytes;
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	if ((rv = getaddrinfo("localhost", neighbour->request_propogation, &hints,
-			&servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return (void*) 1;
-	}
-
-	for (p = servinfo; p != NULL ; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			perror("request_neighbour : client: socket");
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("request_neighbour : client: connect");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL ) {
-		fprintf(stderr, "request_neighbour : client: failed to connect\n");
-		return (void*) 2;
-	}
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
-			sizeof s);
-	fprintf(stderr,"request_neighbour : client: connecting to %s\n", s);
-	freeaddrinfo(servinfo); // all done with this structure
+    sockfd = connect_to("localhost",neighbour->request_propogation,"request_neighbour");
 
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending type %s\n", type);
@@ -3859,7 +3862,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		perror("send");
 
 	for (i = 0; i < keys_to_send.size; i++) {
-        usleep(1000000);
+        usleep(1000);
 		char *key = keys_to_send.array[i];
 		fprintf(stderr,"key to migrate is %s\n",key);
 		fprintf(stderr,"length is %d\n",(int)strlen(key));
@@ -4343,9 +4346,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             fprintf(stderr,"Mode changed: MERGING_PARENT_MIGRATING -> NORMAL_NODE\n");
 
         }
-
 }
-
 
 
 static int is_neighbour(node_info a, node_info b){
@@ -4360,9 +4361,6 @@ static int is_neighbour(node_info a, node_info b){
     else return -1;
 }
 
-static int connect_to(char *port){
-    return -1;
-}
 static int is_neighbour_info_not_valid(node_info n){
     return !strcmp(n.node_removal,"NULL") && !strcmp(n.request_propogation,"NULL");
 }
@@ -4371,7 +4369,7 @@ static void update_neighbours_list(node_info new_node){
     int counter =0;
     for(counter = 0;counter < 10; counter++){
         if(!is_neighbour_info_not_valid(neighbour[counter])){
-            int neighbour_fd = connect_to(neighbour[counter].request_propogation);
+            int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
             neighbour_fd++;
             // Make sure to use new_me instead of me
             if(is_neighbour(new_node,me)!=1){
@@ -4417,8 +4415,6 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 	int counter;
 	ZoneBoundary *boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
 
-
-
 	recv(new_sockfd, buf,1024, 0);
 	fprintf(stderr,"receiving from parent1:%s",buf);
 	if(strcmp(buf,"NONE"))
@@ -4430,7 +4426,6 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 		fprintf(stderr,"receiving from parent2:%s",buf);
 		deserialize_port_numbers2(buf,propagation_port_number,removal_port_number);
 		fprintf(stderr,"receiving from parent3:%s,%s",propagation_port_number,removal_port_number);
-
 
 		for(counter=0;counter<10;counter++)
 		{
@@ -4446,7 +4441,6 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 			}
 		}
 	}
-
 }
 
 

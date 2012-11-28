@@ -223,7 +223,7 @@ static void *node_addition_routine(void *arg){
     
     if (p == NULL) {
         fprintf(stderr, "node_addition_routine: failed to bind\n");
-        return (void *)2;
+        exit(-1);
     }
     
     freeaddrinfo(servinfo); // all done with this structure
