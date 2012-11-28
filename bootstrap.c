@@ -16,7 +16,7 @@
 #include <sys/wait.h>
 
 #define NODE_ADDITION_PORT "11311"
-#define METADA_UPDATE_PORT "11312"
+#define METADATA_UPDATE_PORT "11312"
 #define NODE_DEPARTURE_PORT "11313"
 #define BACKLOG 10 // how many pending connections queue will hold
 
@@ -240,7 +240,7 @@ static void *node_addition_routine(void *arg){
         exit(1);
     }
     
-    printf("node_addition_routine: waiting for connections...\n");
+    printf("node_addition_routine, port %s: waiting for connections...\n",NODE_ADDITION_PORT);
     
     while(1) { // main accept() loop
         sin_size = sizeof their_addr;
@@ -321,6 +321,7 @@ static void remove_node(char *port_number,ZoneBoundary *my_boundary){
 }
 
 static void *metadata_update_routine(void *arg){
+    fprintf(stderr,"metadata_update_routine started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
@@ -343,7 +344,7 @@ static void *metadata_update_routine(void *arg){
     ZoneBoundary *parent_boundary;
     parent_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
     
-    if ((rv = getaddrinfo("localhost", METADA_UPDATE_PORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo("localhost", METADATA_UPDATE_PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return (void *)1;
     }
@@ -386,7 +387,7 @@ static void *metadata_update_routine(void *arg){
 		exit(1);
 	}
 
-	printf("metadata_update_routine: waiting for connections...\n");
+	printf("metadata_update_routine, port %s: waiting for connections...\n", METADATA_UPDATE_PORT);
 
     while(1) { // main accept() loop
         sin_size = sizeof their_addr;
@@ -445,6 +446,7 @@ static void *metadata_update_routine(void *arg){
 }
 
 static void *node_depature_routine(void *arg){
+    fprintf(stderr,"node_depature_routine started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
@@ -509,7 +511,7 @@ static void *node_depature_routine(void *arg){
         exit(1);
     }
     
-    printf("node_depature_routine: waiting for connections...\n");
+    printf("node_depature_routine, port %s: waiting for connections...\n",NODE_DEPARTURE_PORT);
     
     while(1) { // main accept() loop
         sin_size = sizeof their_addr;
