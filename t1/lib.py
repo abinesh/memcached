@@ -2,8 +2,8 @@ import re
 
 def assert_key_not_found(node, key):
     (value, metadata) = _do_get(key, node)
-    assert value is None, "Key expected to be absent, but was found with value:%s, metadata:%s" % (value, metadata)
-    assert metadata is None, "Key expected to be absent, but was found with value:%s, metadata:%s" % (value, metadata)
+    assert value is None, "Key %s expected to be absent, but was found with value:%s, metadata:%s" % (key,value, metadata)
+    assert metadata is None, "Key %s expected to be absent, but was found with value:%s, metadata:%s" % (key,value, metadata)
 
 
 def delete_key(node, key):
