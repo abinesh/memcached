@@ -125,7 +125,11 @@ static char join_server_port_number[255];
 static char join_server_ip_address[255];
 static int boot_strap_socket;
 
-static int is_new_joining_node = 0;
+#define INVALID_START_TYPE -1
+#define START_AS_PARENT 1
+#define START_AS_CHILD 2
+static int starting_node_type = INVALID_START_TYPE;
+
 static my_list list_of_keys;
 static my_list trash_both;
 
@@ -3888,28 +3892,6 @@ static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
 	}
 }
 
-
-static void print_neighbour_list(){
-int counter;
-	for(counter=0;counter<10;counter++)
-		{
-			if(strcmp(neighbour[counter].node_removal,"NULL") && strcmp(neighbour[counter].request_propogation,"NULL"))
-			{
-				fprintf(stderr,"\nneighbours are:\n");
-				fprintf(stderr,"\ncounter:%d\n",counter);
-
-				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.from.x);
-				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.from.y);
-				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.to.x);
-				fprintf(stderr,"\n%f\n",neighbour[counter].boundary.to.y);
-
-				fprintf(stderr,"\n%s\n",neighbour[counter].request_propogation);
-				fprintf(stderr,"\n%s\n",neighbour[counter].node_removal);
-			}
-		}
-}
-
-
 static void* _parent_split_migrate_phase(void *arg){
     int i=0;
     my_list keys_to_send;
@@ -4616,9 +4598,7 @@ static void *join_request_listener_thread_routine(void * args) {
         args->child_fd = new_fd;
         args->item_lock_type_key = item_lock_type_key;
         pthread_create(&split_migrate_keys_thread, 0,split_migrate_keys_routine,(void*)args);
-	    print_neighbour_list();
-
-
+        print_ecosystem();
 	}
 	return 0;
 }
@@ -4833,7 +4813,7 @@ static void *connect_and_split_thread_routine(void *args) {
     connect_to_bootstrap2("11312");
 
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
-	print_neighbour_list();
+	print_ecosystem();
 
 //	 send(boot_strap_socket,str,strlen(str),0);
 
@@ -6554,7 +6534,7 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 	int sockfd=0, numbytes;
 	char buf[MAXDATASIZE];
 	struct addrinfo hints, *servinfo, *p;
-	int rv;
+	int rv,i;
 	char s[INET6_ADDRSTRLEN];
 	char buf2[255];
 	int temp;
@@ -6623,6 +6603,7 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 
 	deserialize_boundary(buf,&world_boundary);
 	my_boundary=world_boundary;
+	me.boundary=world_boundary;
 
 
 ////receiving whom to connect
@@ -6637,21 +6618,25 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 		if(!strcmp(buf2,"NOTFIRST"))
 		{
 			sprintf(join_server_port_number,"%d",temp);
-
-			fprintf(stderr,"\njoin server p num:%s\n",join_server_port_number);
-			is_new_joining_node=1;
+			fprintf(stderr,"\nNode starting as Child, connecting to %s to receive keys\n",join_server_port_number);
+			starting_node_type = START_AS_CHILD;
 		}
-
-
-
+		else
+		{
+            fprintf(stderr,"\nNode starting as Parent\n");
+		    starting_node_type = START_AS_PARENT;
+		}
 	close(sockfd);
-
-
+    for(i =0 ;i < 10 ;i++)
+    {
+        strcpy(neighbour[i].node_removal,"NULL");
+        strcpy(neighbour[i].request_propogation,"NULL");
+    }
 }
 
 
 int main(int argc, char **argv) {
-int c,i;
+int c;
 bool lock_memory = false;
 bool do_daemonize = false;
 bool preallocate = false;
@@ -6758,7 +6743,7 @@ while (-1 != (c = getopt(argc, argv, "a:" /* access mask for unix socket */
 		break;
 
 	case 'j':
-		is_new_joining_node = 1;
+		starting_node_type = START_AS_PARENT;
 		ptr = strtok(optarg, ":");
 		strcpy(join_server_ip_address, ptr);
 		ptr = strtok(NULL, ":");
@@ -7145,36 +7130,26 @@ mylist_init(&trash_both);
 pthread_mutex_unlock(&list_of_keys_lock);
 
 /* start up worker threads if MT mode */
-if (is_new_joining_node == 0) {
+if (starting_node_type == START_AS_PARENT) {
 	mode = NORMAL_NODE;
 
-
 	fprintf(stderr, "Mode set as : NORMAL_NODE\n");
-
-	for(i =0 ;i < 10 ;i++)
-	{
-		strcpy(neighbour[i].node_removal,"NULL");
-		strcpy(neighbour[i].request_propogation,"NULL");
-	}
-
+	print_ecosystem();
 	thread_init(settings.num_threads, main_base,
 			join_request_listener_thread_routine, NULL,
 			node_removal_listener_thread_routine,
 			node_propagation_thread_routine);
-} else {
+} else if (starting_node_type == START_AS_CHILD) {
     mode = SPLITTING_CHILD_INIT;
-
     fprintf(stderr, "Mode set as : SPLITTING_CHILD_INIT\n");
-    for(i =0 ;i < 10 ;i++)
-    {
-         strcpy(neighbour[i].node_removal,"NULL");
-         strcpy(neighbour[i].request_propogation,"NULL");
-    }
-
 	thread_init(settings.num_threads, main_base, NULL,
 			connect_and_split_thread_routine,
 			node_removal_listener_thread_routine,
 			node_propagation_thread_routine);
+}
+else {
+    fprintf(stderr,"Invalid start node type\n");
+    exit(-1);
 }
 
 if (start_assoc_maintenance_thread() == -1) {

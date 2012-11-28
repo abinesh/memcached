@@ -160,7 +160,7 @@ static void save_port_number(int port){
 }
 
 
-static void print_port_number(){
+static void print_list_of_nodes_in_cluster(){
 	int counter;
     fprintf(stderr,"List of nodes in the cluster:\n");
 	for(counter=0;counter<10;counter++)
@@ -175,6 +175,7 @@ static void print_port_number(){
 		            nodes[counter].boundary.to.y);
 		}
 	}
+	fprintf(stderr,"End of list\n");
 }
 
 static void *node_addition_routine(void *arg){
@@ -283,6 +284,7 @@ static void *node_addition_routine(void *arg){
             send(new_fd,portnum,strlen(portnum), 0);
         }
         close(new_fd); // parent doesn't need this
+        print_list_of_nodes_in_cluster();
     }
 }
 
@@ -438,8 +440,8 @@ static void *metadata_update_routine(void *arg){
         sscanf(buf,"%s",parent_port_number);
         save_boundaries(parent_port_number,parent_boundary);
         
-        print_port_number();
         close(new_fd); // parent doesn't need this
+        print_list_of_nodes_in_cluster();
     }
 }
 
@@ -567,8 +569,8 @@ static void *node_depature_routine(void *arg){
         
         save_boundaries(parent_port_number,parent_boundary);
         
-        print_port_number();
         close(new_fd); // parent doesn't need this
+        print_list_of_nodes_in_cluster();
     }
 }
 
@@ -585,6 +587,7 @@ int main(void){
 			strcpy(nodes[i].join_request,"NULL");
 			init_boundary(&nodes[i].boundary);
     }
+    print_list_of_nodes_in_cluster();
 
     pthread_t node_addition_thread;
     pthread_t metadata_update_thread;
