@@ -4629,12 +4629,11 @@ static void connect_to_bootstrap2(char *port_number){
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	fprintf(stderr,"\nJ2 is:%s\n",optarg);
-
 	strcpy(join_server_ip_address,"localhost");
+	fprintf(stderr,"\nBootstrap node removal routine is at %s:%s\n",join_server_ip_address,port_number);
 
 
-	if ((rv = getaddrinfo("localhost", port_number, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(join_server_ip_address, port_number, &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 	//return (void)1;
 	}
@@ -6543,7 +6542,7 @@ if (ever != NULL ) {
 return true;
 }
 
-static void connect_to_bootstrap(char *optarg){
+static void connect_to_bootstrap(char *bootstrap_port_no){
 	int MAXDATASIZE=1024;
 	int sockfd=0, numbytes;
 	char buf[MAXDATASIZE];
@@ -6557,9 +6556,8 @@ static void connect_to_bootstrap(char *optarg){
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	fprintf(stderr,"\nJ2 is:%s\n",optarg);
-
 	strcpy(join_server_ip_address,"localhost");
+	fprintf(stderr,"\nBootstrap is at %s:%s\n",join_server_ip_address,bootstrap_port_no);
 
 
 	if ((rv = getaddrinfo("localhost", "11311", &hints, &servinfo)) != 0) {

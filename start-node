@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+make clean
+sudo make install
+./memcached -J 11311 -p 11211
