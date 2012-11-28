@@ -1,5 +1,9 @@
-all: bootstrap
+all: clean bootstrap
+
+clean:
+	rm -f bootstrap
+
 bootstrap:bootstrap.c
-	gcc -o bootstrap bootstrap.c -lpthread
+	gcc -Werror -o bootstrap bootstrap.c -lpthread
 
 

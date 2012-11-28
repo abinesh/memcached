@@ -97,18 +97,17 @@ static int find_port(){
 
 }
 
-static int check(){
+static int cluster_has_nodes(){
     int counter;
     for(counter=0;counter<10;counter++)
     {
-        if(!strcmp(nodes[0].join_request,"NULL"))
+        if(strcmp(nodes[0].join_request,"NULL")!=0)
         {
-            printf("This is first node");
+            //found a node in the list
             return 1;
         }
-        else
-            return -1;
     }
+    // Did not find any node in the list
     return -1;
 }
 
@@ -168,7 +167,7 @@ static void print_port_number(){
 	{
 		if(strcmp(nodes[counter].join_request,"NULL"))
 		{
-		    fprintf(stderr,"\t%d: (%d,[(%f,%f) to (%f,%f)])\n",
+		    fprintf(stderr,"\t%d: (%s,[(%f,%f) to (%f,%f)])\n",
 		            (counter+1),nodes[counter].join_request,
 		            nodes[counter].boundary.from.x,
 		            nodes[counter].boundary.from.y,
@@ -195,7 +194,7 @@ static void *node_addition_routine(void *arg){
     int port,port_to_join;
     char portnum[255];
     char str[1024];
-    int first_node,numbytes;
+    int numbytes;
     char buf[1024];
     
     if ((rv = getaddrinfo("localhost", NODE_ADDITION_PORT, &hints, &servinfo)) != 0) {
@@ -270,8 +269,7 @@ static void *node_addition_routine(void *arg){
         usleep(1000);
         
         //sending whom to connect
-        first_node=check();
-        if(first_node==1)
+        if(cluster_has_nodes() == -1)
         {
             nodes[0].boundary=world_boundary;
             sprintf(nodes[0].join_request,"%d",port);
