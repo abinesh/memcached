@@ -2986,21 +2986,30 @@ static void print_all_boundaries() {
 	}
 }
 
+static void print_node_info(node_info n){
+    fprintf(stderr,"(%s,%s,%s,((%f,%f) to (%f,%f)))\n",
+                n.join_request,
+                n.request_propogation,
+                n.node_removal,
+                n.boundary.from.x,
+                n.boundary.from.y,
+                n.boundary.to.x,
+                n.boundary.to.y
+            );
+}
+
 static void print_ecosystem(){
     fprintf(stderr,"------------\n");
-    print_all_boundaries();
-    fprintf(stderr,"me.join_request port = %s\n",me.join_request);
-    fprintf(stderr,"me.request_propogation port = %s\n",me.request_propogation);
-    fprintf(stderr,"me.node_removal port = %s\n",me.node_removal);
+    fprintf(stderr,"Me:");
+    print_node_info(me);
     int i=0;
+    fprintf(stderr,"Neighbours list:\n");
+    fprintf(stderr,"(Port numbers, boundary)\n");
     for(i=0;i<10;i++){
         if(strcmp(neighbour[i].node_removal,"NULL") || strcmp(neighbour[i].request_propogation,"NULL"))
         {
-            fprintf(stderr,"\nNeighour %d\n",i);
-            print_boundaries(neighbour[i].boundary);
-            fprintf(stderr, "neighbour[i].join_request = %s\n",neighbour[i].join_request);
-            fprintf(stderr, "neighbour[i].request_propogation = %s\n",neighbour[i].request_propogation);
-            fprintf(stderr,"neighbour[i].node_removal = %s\n",neighbour[i].node_removal);
+            fprintf(stderr,"%d\n",i);
+            print_node_info(neighbour[i]);
         }
     }
     fprintf(stderr,"------------\n");
