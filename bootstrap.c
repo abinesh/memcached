@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <signal.h>
 #include <errno.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -195,9 +196,7 @@ static void *node_addition_routine(void *arg){
     int port,port_to_join;
     char portnum[255];
     char str[1024];
-    int numbytes;
-    char buf[1024];
-    
+
     if ((rv = getaddrinfo("localhost", NODE_ADDITION_PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "node_addition_routine: getaddrinfo: %s\n", gai_strerror(rv));
         return (void *)1;
@@ -334,11 +333,8 @@ static void *metadata_update_routine(void *arg){
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
-    int port;
-    char portnum[255];
-    char str[1024];
-    int first_node,numbytes;
-    char buf[1024],port_number[255],boundary[1024],parent_port_number[255];
+    int numbytes;
+    char buf[1024],port_number[255],parent_port_number[255];
     ZoneBoundary *my_boundary;
     my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
     ZoneBoundary *parent_boundary;
@@ -459,11 +455,8 @@ static void *node_depature_routine(void *arg){
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
-    int port;
-    char portnum[255];
-    char str[1024];
-    int first_node,numbytes;
-    char buf[1024],port_number[255],boundary[1024],parent_port_number[255];
+    int numbytes;
+    char buf[1024],port_number[255],parent_port_number[255];
     ZoneBoundary *my_boundary;
     my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
     ZoneBoundary *parent_boundary;

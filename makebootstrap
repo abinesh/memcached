@@ -4,6 +4,6 @@ clean:
 	rm -f bootstrap
 
 bootstrap:bootstrap.c
-	gcc -Werror -o bootstrap bootstrap.c -lpthread
+	gcc -Wall -Werror -o bootstrap bootstrap.c -lpthread
 
 
