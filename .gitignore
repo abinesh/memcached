@@ -41,3 +41,4 @@ doc/protocol-binary.txt
 /memcached.spec
 temp.txt
 *.pyc
+bootstrap
