@@ -3924,6 +3924,7 @@ static void* _parent_split_migrate_phase(void *arg){
     print_all_boundaries();
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_PARENT_MIGRATING -> NORMAL_NODE\n");
+    print_ecosystem();
     return 0;
 }
 
@@ -4347,7 +4348,43 @@ static void *node_removal_listener_thread_routine(void *args) {
 
 
 
-static int sending_parents_neighbours_to_child(int new_fd){
+static int is_neighbour(node_info a, node_info b){
+    if(a.boundary.from.x == b.boundary.to.x){
+        // A is to the right of B in vertical partitioning
+        return 1;
+    }
+    else if(a.boundary.to.x == b.boundary.from.x){
+        // A is to the left of B in vertical partitioning
+        return 1;
+    }
+    else return -1;
+}
+
+static int connect_to(char *port){
+    return -1;
+}
+static int is_neighbour_info_not_valid(node_info n){
+    return !strcmp(n.node_removal,"NULL") && !strcmp(n.request_propogation,"NULL");
+}
+
+static void update_neighbours_list(node_info new_node){
+    int counter =0;
+    for(counter = 0;counter < 10; counter++){
+        if(!is_neighbour_info_not_valid(neighbour[counter])){
+            int neighbour_fd = connect_to(neighbour[counter].request_propogation);
+            neighbour_fd++;
+            // Make sure to use new_me instead of me
+            if(is_neighbour(new_node,me)!=1){
+                //remove me from neighbour
+            }
+            if(is_neighbour(new_node,neighbour[counter])){
+                //add new node to neighbour
+            }
+        }
+    }
+}
+
+static int send_neighbours_to_child(int new_fd){
 	char boundary_str[1024],port_number_str[1024];
 	int counter;
 	int flag=0;
@@ -4397,7 +4434,7 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 
 		for(counter=0;counter<10;counter++)
 		{
-			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
+			if(is_neighbour_info_not_valid(neighbour[counter]))
 			{
 				neighbour[counter].boundary.from.x=boundary->from.x;
 				neighbour[counter].boundary.from.y=boundary->from.y;
@@ -4568,28 +4605,23 @@ static void *join_request_listener_thread_routine(void * args) {
 	            exit(1);
 	        }
 
-	      deserialize_port_numbers2(buf,neighbour_request_propogation,
-	                neighbour_node_removal);
+        deserialize_port_numbers2(buf,neighbour_request_propogation,neighbour_node_removal);
 
+        send_neighbours_to_child(new_fd);
+        node_info new_node;
+        new_node.boundary=client_boundary;
+        sprintf(new_node.node_removal,"%s",neighbour_node_removal);
+        sprintf(new_node.request_propogation,"%s",neighbour_request_propogation);
+        update_neighbours_list(new_node);
 
-
-
-	      	sending_parents_neighbours_to_child(new_fd);
-
-
-	      for(counter=0;counter<10;counter++)
-			{
-				if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
-				{
-					neighbour[counter].boundary=client_boundary;
-					sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
-					sprintf(neighbour[counter].request_propogation,"%s",neighbour_request_propogation);
-					break;
-				}
-
-			}
-
-
+        for(counter=0;counter<10;counter++)
+        {
+            if(is_neighbour_info_not_valid(neighbour[counter]))
+            {
+                neighbour[counter]=new_node;
+                break;
+            }
+        }
 
         usleep(2000);
         pthread_t split_migrate_keys_thread;
@@ -4778,7 +4810,7 @@ static void *connect_and_split_thread_routine(void *args) {
 
 		for(counter=0;counter<10;counter++)
 		{
-			if(!strcmp(neighbour[counter].node_removal,"NULL") && !strcmp(neighbour[counter].request_propogation,"NULL"))
+			if(is_neighbour_info_not_valid(neighbour[counter]))
 			{
 				neighbour[counter].boundary=neighbour_boundary;
 				sprintf(neighbour[counter].node_removal,"%s",neighbour_node_removal);
@@ -6557,12 +6589,12 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 		if ((sockfd = socket(p->ai_family, p->ai_socktype,
 		p->ai_protocol)) == -1) {
 			perror("client: socket");
-			continue;
+			exit(-1);
 		}
 		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);
 			perror("client: connect");
-			continue;
+			exit(-1);
 		}
 	break;
 	}
