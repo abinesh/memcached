@@ -123,7 +123,6 @@ static enum transmit_result transmit(conn *c);
 //IP address and port number of join node
 static char join_server_port_number[255];
 static char join_server_ip_address[255];
-static int boot_strap_socket;
 
 #define INVALID_START_TYPE -1
 #define START_AS_PARENT 1
@@ -4631,59 +4630,17 @@ static void *join_request_listener_thread_routine(void * args) {
 
 
 static void connect_to_bootstrap2(char *port_number){
-	int sockfd=0;
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
+	int sockfd=-1;
 	char str[1024],str2[1024];
 	char parent_boundary_str[1024];
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
 	strcpy(join_server_ip_address,"localhost");
 	fprintf(stderr,"\nBootstrap node removal routine is at %s:%s\n",join_server_ip_address,port_number);
-
-
-	if ((rv = getaddrinfo(join_server_ip_address, port_number, &hints, &servinfo)) != 0) {
-	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-	//return (void)1;
-	}
-	// loop through all the results and connect to the first we can
-
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-		p->ai_protocol)) == -1) {
-			perror("client: socket");
-			continue;
-		}
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("client: connect");
-			continue;
-		}
-	break;
-	}
-
-	if (p == NULL) {
-	fprintf(stderr, "client: failed to connect\n");
-	//return (void)2;
-	}
-
-
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-	s, sizeof s);
-
-	printf("client: connecting to %s\n", s);
-
-	freeaddrinfo(servinfo); // all done with this structure
-
+	sockfd= connect_to(join_server_ip_address, port_number,"connect_to_boostrap2");
 
     serialize_boundary(my_boundary,str);
 
-//sending my boundary
+    //sending my boundary
     send(sockfd,str,strlen(str),0);
 
     usleep(1000);
@@ -4715,53 +4672,13 @@ static void *connect_and_split_thread_routine(void *args) {
 	int sockfd, numbytes;
 	int MAXDATASIZE = 1024;
 	char buf[MAXDATASIZE];
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
 	int counter;
 
 	char neighbour_request_propogation[1024],
     neighbour_node_removal[1024];//, me_request_propogation[1024],
 //    me_node_removal[1024];
 
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-	fprintf(stderr,"\nIn connect_and_split\n:%s",join_server_port_number);
-	if ((rv = getaddrinfo(join_server_ip_address, join_server_port_number,
-			&hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return (void*) 1;
-	}
-
-	for (p = servinfo; p != NULL ; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			perror("connect_and_split_thread_routine : client: socket");
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("connect_and_split_thread_routine : client: connect");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL ) {
-		fprintf(stderr,
-				"connect_and_split_thread_routine : client: failed to connect\n");
-		exit(-1);
-	}
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
-			sizeof s);
-	fprintf(stderr,"connect_and_split_thread_routine : client: connecting to %s\n", s);
-	freeaddrinfo(servinfo); // all done with this structure
+    sockfd = connect_to(join_server_ip_address, join_server_port_number,"connect_and_split_thread_routine");
 
 	//receiving self boundary
 	memset(buf, '\0', 1024);
@@ -4840,21 +4757,14 @@ static void *connect_and_split_thread_routine(void *args) {
 
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
 	print_ecosystem();
-
-//	 send(boot_strap_socket,str,strlen(str),0);
-
 	return 0;
 }
-
-
-
 
 static void _send_my_boundary_to(int another_node_fd) {
 	char buf[1024];
 	serialize_boundary(my_boundary, buf);
 	send(another_node_fd, buf, strlen(buf), 0);
 }
-
 
 static float calculate_area(ZoneBoundary bounds)
 {
@@ -4863,24 +4773,10 @@ static float calculate_area(ZoneBoundary bounds)
 	from.y=bounds.from.y;
 	to.x=bounds.to.x;
 	to.y=bounds.to.y;
-	//float sum1,sum2;
-	//float multiply;
 	float area;
-
-	/*sum1=pow((from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x),0.5);
-
-	sum2=pow((from.x-to.x)*(from.x-to.x) +(from.y-to.y)*(from.y-to.y),0.5);
-*/
-
 	fprintf(stderr,"\npoints::%f,%f,%f,%f\n",to.x,from.x,to.y,from.y);
 	area= (to.x - from.x)* (to.y-from.y);
 	fprintf(stderr,"%f",(to.x - from.x)*(to.y-from.y));
-
-	/*sum1=(from.x-to.x)*(from.x-to.x) + (from.y-to.x)*(from.y-to.x);
-
-	sum2=(from.x-to.x)*(from.x-to.x) +(from.y-to.y)*(from.y-to.y);
-*/
-//	multiply=sum1*sum2;
 	return area;
 }
 
@@ -4912,10 +4808,7 @@ static void find_neighbour(node_info *found_neighbour)
 }
 
 static void process_die_command(conn *c) {
-	int sockfd, i;
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
+	int sockfd=-1, i;
 	my_list keys_to_send;
 	node_info *found_neighbour;
 	char buf[1024];
@@ -4924,48 +4817,12 @@ static void process_die_command(conn *c) {
 
 	out_string(c,
 			"Die command received, initiating to move all keys to a neighbour\n");
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-
 	find_neighbour(found_neighbour);
-
 
 	//parent.from.=found_neighbour->boundary.from.x;
 
 	fprintf(stderr,"\nneighbour.node_removal=%s\n",found_neighbour->node_removal);
-	if ((rv = getaddrinfo(join_server_ip_address, found_neighbour->node_removal,
-			&hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return;
-	}
-
-	for (p = servinfo; p != NULL ; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			perror("process_die_command: client: socket");
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("process_die_command: client: connect");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL ) {
-		fprintf(stderr, "process_die_command: client: failed to connect\n");
-		return;
-	}
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s,
-			sizeof s);
-	fprintf(stderr,"process_die_command : client: connecting to %s\n", s);
-	freeaddrinfo(servinfo); // all done with this structure
+	sockfd = connect_to(join_server_ip_address, found_neighbour->node_removal,"process_die_command");
 
 	fprintf(stderr, "In process_die_command\n");
     mode = MERGING_CHILD_INIT;
@@ -6559,54 +6416,14 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 	int MAXDATASIZE=1024;
 	int sockfd=0, numbytes;
 	char buf[MAXDATASIZE];
-	struct addrinfo hints, *servinfo, *p;
-	int rv,i;
-	char s[INET6_ADDRSTRLEN];
+	int i;
 	char buf2[255];
 	int temp;
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
 	strcpy(join_server_ip_address,"localhost");
 	fprintf(stderr,"\nBootstrap is at %s:%s\n",join_server_ip_address,bootstrap_port_no);
-
-
-	if ((rv = getaddrinfo("localhost", "11311", &hints, &servinfo)) != 0) {
-	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-	//return (void)1;
-	}
-	// loop through all the results and connect to the first we can
-
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-		p->ai_protocol)) == -1) {
-			perror("client: socket");
-			exit(-1);
-		}
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("client: connect");
-			exit(-1);
-		}
-	break;
-	}
-
-	if (p == NULL) {
-	fprintf(stderr, "client: failed to connect\n");
-	//return (void)2;
-	}
-
-	boot_strap_socket = sockfd;
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-	s, sizeof s);
-
-	printf("client: connecting to %s\n", s);
-
-	freeaddrinfo(servinfo); // all done with this structure
-//receiving join req port
+    sockfd = connect_to("localhost", "11311","connect_to_boostrap");
+    //receiving join req port
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 	perror("recv");
 	exit(1);
