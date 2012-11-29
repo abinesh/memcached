@@ -2868,13 +2868,13 @@ static int connect_to(char *ip_address,char *port,char *caller){
     }
     for (p = servinfo; p != NULL ; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            fprintf(stderr,"In %s",caller);
+            fprintf(stderr,"In %s,",caller);
             perror("client: socket");
             continue;
         }
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
-            fprintf(stderr,"In %s",caller);
+            fprintf(stderr,"In %s,",caller);
             perror("client: connect");
             continue;
         }
@@ -4442,6 +4442,60 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 	}
 }
 
+static int listen_on(char *port,char *caller){
+    int sockfd=-1; // listen on sock_fd, new connection on new_fd
+	struct sigaction sa;
+   	struct addrinfo hints, *servinfo, *p;
+   	int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = INADDR_ANY;
+
+	if ((rv = getaddrinfo("localhost", port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "In %s, getaddrinfo: %s\n", caller, gai_strerror(rv));
+        exit(-1);
+    }
+    
+    // loop through all the results and bind to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            fprintf(stderr,"In %s,",caller);
+            perror("listener: socket");
+            continue;
+        }
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            fprintf(stderr,"In %s,",caller);
+            perror("listener: bind");
+            continue;
+        }
+        break;
+    }
+    if (p == NULL) {
+        fprintf(stderr, "In %s, listener: failed to bind socket\n",caller);
+        exit(-1);
+    }
+    
+    if (listen(sockfd, BACKLOG) == -1) {
+    fprintf(stderr,"In %s,",caller);
+    perror("listen");
+    exit(1);
+    }
+    
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    
+    if (sigaction(SIGCHLD, &sa, NULL ) == -1) {
+    fprintf(stderr,"In %s,",caller);
+    perror("sigaction");
+    exit(1);
+    }
+
+return sockfd;
+}
 
 
 static void *join_request_listener_thread_routine(void * args) {
@@ -4453,16 +4507,8 @@ static void *join_request_listener_thread_routine(void * args) {
 	int sockfd=0,new_fd; // listen on sock_fd, new connection on new_fd
 	struct sockaddr_storage their_addr; // connector's address information
 	socklen_t sin_size;
-	struct sigaction sa;
 	char s[INET6_ADDRSTRLEN],buf[1024];
     int counter,numbytes;
-   	struct addrinfo hints, *servinfo, *p;
-   	int rv;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = INADDR_ANY;
 
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
 	if(item_lock_type_key) fprintf(stderr,"lock passed on properly\n");
@@ -4474,45 +4520,13 @@ static void *join_request_listener_thread_routine(void * args) {
     my_new_boundary = my_boundary;
 
     fprintf(stderr,"\nin join req....me.joinport:%s\n",me.join_request);
+    
+    sockfd  = listen_on(me.join_request,"join_request_listener_thread_routine");
 
-	if ((rv = getaddrinfo("localhost", me.join_request, &hints, &servinfo)) != 0) {
-				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-				//return 1;
-		}
-
-		// loop through all the results and bind to the first we can
-		for(p = servinfo; p != NULL; p = p->ai_next) {
-			if ((sockfd = socket(p->ai_family, p->ai_socktype,
-					p->ai_protocol)) == -1) {
-					perror("listener: socket");
-					continue;
-			}
-			if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-				close(sockfd);
-				perror("listener: bind");
-				continue;
-			}
-			break;
-		}
-		if (p == NULL) {
-			fprintf(stderr, "listener: failed to bind socket\n");
-			//return 2;
-		}
-
-	if (listen(sockfd, BACKLOG) == -1) {
-		perror("listen");
-		exit(1);
-	}
-
-	sa.sa_handler = sigchld_handler; // reap all dead processes
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-
-	if (sigaction(SIGCHLD, &sa, NULL ) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
-
+    if(sockfd == -1){
+        perror("join_req_listener");
+        exit(-1);
+    }
 	while (1) { // main accept() loop
     	fprintf(stderr,"join_request_listener_thread_routine : server: waiting for connections...\n");
 		sin_size = sizeof their_addr;
@@ -4520,7 +4534,7 @@ static void *join_request_listener_thread_routine(void * args) {
 
 		if (new_fd == -1) {
 			perror("accept");
-			continue;
+			exit(-1);
 		}
 
 		inet_ntop(their_addr.ss_family,
