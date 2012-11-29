@@ -2855,6 +2855,25 @@ static void sigchld_handler(int s) {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
+static int receive_connection_from_client(int server_sock_fd, char *caller){
+    int new_fd; // listen on sock_fd, new connection on new_fd
+    struct sockaddr_storage their_addr; // connector's address information
+    socklen_t sin_size;
+    char s[INET6_ADDRSTRLEN];
+
+    fprintf(stderr,"%s : server: waiting for connections...\n",caller);
+    sin_size = sizeof their_addr;
+    new_fd = accept(server_sock_fd, (struct sockaddr *) &their_addr, &sin_size);
+    if (new_fd == -1) {
+        perror("accept");
+        exit(-1);
+    }
+
+    inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
+    fprintf(stderr, "%s : server: got connection from %s\n",caller, s);
+    return new_fd;
+}
+
 static int listen_on(char *port,char *caller){
     int sockfd=-1; // listen on sock_fd, new connection on new_fd
 	struct sigaction sa;
@@ -4190,10 +4209,7 @@ static void *node_propagation_thread_routine(void *args){
 	if(settings.verbose>1)
 	        fprintf(stderr,"in node_propagation_thread_routine\n");
 	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-	struct sockaddr_storage their_addr; // connector's address information
-	socklen_t sin_size;
 	struct sigaction sa;
-	char s[INET6_ADDRSTRLEN]; //,buf[1024];
 
 	int MAXDATASIZE = 1024;
 	char buf[MAXDATASIZE];
@@ -4221,19 +4237,7 @@ static void *node_propagation_thread_routine(void *args){
 			"node_propagation_thread_routine : server: waiting for connections...\n");
 
 	while (1) { // main accept() loop
-
-		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
-
-		if (new_fd == -1) {
-			perror("accept");
-			continue;
-		}
-
-		inet_ntop(their_addr.ss_family,
-				get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-		fprintf(stderr, "node_propagation_thread_routine: got connection from %s\n", s);
-
+	    new_fd = receive_connection_from_client(sockfd,"node_propagation_thread_routine");
 		memset(buf, '\0', 1024);
 		if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
 			perror("recv");
@@ -4326,10 +4330,7 @@ static void *node_removal_listener_thread_routine(void *args) {
 		fprintf(stderr, "in node_removal_listener_thread_routine\n");
 
 	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-	struct sockaddr_storage their_addr; // connector's address information
-	socklen_t sin_size;
 	struct sigaction sa;
-	char s[INET6_ADDRSTRLEN];
 	char buf[1024];
 
 	int port = find_port(&sockfd);
@@ -4352,19 +4353,7 @@ static void *node_removal_listener_thread_routine(void *args) {
 			"node_removal_listener_thread_routine : server: waiting for connections...\n");
 
 	while (1) { // main accept() loop
-
-		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
-
-		if (new_fd == -1) {
-			perror("accept");
-			continue;
-		}
-
-		inet_ntop(their_addr.ss_family,
-				get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-		fprintf(stderr, "node_removal_listener_thread_routine: got connection from %s\n",
-				s);
+	    new_fd = receive_connection_from_client(sockfd,"node_removal_listener_thread_routine");
 
             mode = MERGING_PARENT_INIT;
             fprintf(stderr,"Mode changed: NORMAL_NODE -> MERGING_PARENT_INIT\n");
@@ -4505,9 +4494,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	//int entry_to_delete;
 	int MAXDATASIZE=1024;
 	int sockfd=0,new_fd; // listen on sock_fd, new connection on new_fd
-	struct sockaddr_storage their_addr; // connector's address information
-	socklen_t sin_size;
-	char s[INET6_ADDRSTRLEN],buf[1024];
+	char buf[1024];
     int counter,numbytes;
 
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
@@ -4528,20 +4515,7 @@ static void *join_request_listener_thread_routine(void * args) {
         exit(-1);
     }
 	while (1) { // main accept() loop
-    	fprintf(stderr,"join_request_listener_thread_routine : server: waiting for connections...\n");
-		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
-
-		if (new_fd == -1) {
-			perror("accept");
-			exit(-1);
-		}
-
-		inet_ntop(their_addr.ss_family,
-				get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-		fprintf(stderr,
-				"join_request_listener_thread_routine : server: got connection from %s\n",
-				s);
+	    new_fd = receive_connection_from_client(sockfd,"join_request_listener_thread_routine");
 
 		mode = SPLITTING_PARENT_INIT;
         fprintf(stderr,"Mode changed: NORMAL_NODE -> SPLITTING_PARENT_INIT\n");

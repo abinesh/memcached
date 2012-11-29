@@ -45,6 +45,25 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+static int receive_connection_from_client(int server_sock_fd, char *caller){
+    int new_fd; // listen on sock_fd, new connection on new_fd
+    struct sockaddr_storage their_addr; // connector's address information
+    socklen_t sin_size;
+    char s[INET6_ADDRSTRLEN];
+
+    fprintf(stderr,"%s : server: waiting for connections...\n",caller);
+    sin_size = sizeof their_addr;
+    new_fd = accept(server_sock_fd, (struct sockaddr *) &their_addr, &sin_size);
+    if (new_fd == -1) {
+        perror("accept");
+        exit(-1);
+    }
+
+    inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
+    fprintf(stderr, "%s : server: got connection from %s\n",caller, s);
+    return new_fd;
+}
+
 static int listen_on(char *port,char *caller){
     int sockfd=-1;
 	struct sigaction sa;
@@ -234,9 +253,6 @@ static void print_list_of_nodes_in_cluster(){
 static void *node_addition_routine(void *arg){
     fprintf(stderr,"Node addition thread started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-    struct sockaddr_storage their_addr; // connector's address information
-    socklen_t sin_size;
-    char s[INET6_ADDRSTRLEN];
     int port,port_to_join;
     char portnum[255];
     char str[1024];
@@ -245,17 +261,8 @@ static void *node_addition_routine(void *arg){
     printf("node_addition_routine, port %s: waiting for connections...\n",NODE_ADDITION_PORT);
     
     while(1) { // main accept() loop
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
-        inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        
-        printf("node_addition_routine: got connection from %s\n", s);
-        
+        new_fd = receive_connection_from_client(sockfd,"node_addition_routine");
+
         //sending join_req_port
         port=find_port();
         sprintf(portnum,"%d",port);
@@ -325,9 +332,6 @@ static void remove_node(char *port_number,ZoneBoundary *my_boundary){
 static void *metadata_update_routine(void *arg){
     fprintf(stderr,"metadata_update_routine started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-    struct sockaddr_storage their_addr; // connector's address information
-    socklen_t sin_size;
-    char s[INET6_ADDRSTRLEN];
     int numbytes;
     char buf[1024],port_number[255],parent_port_number[255];
     ZoneBoundary *my_boundary;
@@ -339,17 +343,8 @@ static void *metadata_update_routine(void *arg){
 	printf("metadata_update_routine, port %s: waiting for connections...\n", METADATA_UPDATE_PORT);
 
     while(1) { // main accept() loop
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
-        inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        
-        printf("metadata_update_routine: got connection from %s\n", s);
-        
+        new_fd = receive_connection_from_client(sockfd,"metadata_update_routine");
+
         //receiving child boundary
         memset(buf, '\0', 1024);
         if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
@@ -397,9 +392,6 @@ static void *metadata_update_routine(void *arg){
 static void *node_depature_routine(void *arg){
     fprintf(stderr,"node_depature_routine started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-    struct sockaddr_storage their_addr; // connector's address information
-    socklen_t sin_size;
-    char s[INET6_ADDRSTRLEN];
     int numbytes;
     char buf[1024],port_number[255],parent_port_number[255];
     ZoneBoundary *my_boundary;
@@ -411,17 +403,8 @@ static void *node_depature_routine(void *arg){
     printf("node_depature_routine, port %s: waiting for connections...\n",NODE_DEPARTURE_PORT);
     
     while(1) { // main accept() loop
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
-        inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        
-        printf("node_depature_routine: got connection from %s\n", s);
-        
+        new_fd = receive_connection_from_client(sockfd,"node_depature_routin");
+
         //receiving child boundary
         memset(buf, '\0', 1024);
         if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
