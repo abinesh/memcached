@@ -4304,6 +4304,11 @@ static void *node_propagation_thread_routine(void *args){
 			}
                 sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
                 updating_key_from_neighbour(key,flag,time,length,value);
+            if ((numbytes = send(new_fd, "STORED", strlen("STORED"), 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+
         }
         else if(!strcmp(buf,"delete"))
         {
@@ -4314,6 +4319,10 @@ static void *node_propagation_thread_routine(void *args){
             }
 
             deleting_key_from_neighbour(buf);
+            if ((numbytes = send(new_fd, "DELETED", strlen("DELETED"), 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
         }
         else if(!strcmp(buf,ADD_NEIGHBOUR_COMMAND) || !strcmp(buf,REMOVE_NEIGHBOUR_COMMAND) || !strcmp(buf,UPDATE_NEIGHBOUR_COMMAND)){
             char command[1024],port[1024],boundarystr[1024];
@@ -4344,6 +4353,7 @@ static void *node_propagation_thread_routine(void *args){
             _update_neighbours_list(command,port,boundary);
             print_ecosystem();
         }
+        close(new_fd);
     }
 
     close(sockfd);
