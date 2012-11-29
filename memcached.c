@@ -4220,7 +4220,7 @@ static void set_node_info(node_info *n,ZoneBoundary b,char *propagation_port_num
 
 static void _update_neighbours_list(char *command, char *port, ZoneBoundary boundary){
     int i=0;
-    if(strcmp(command,"ADD_NEIGHBOUR")==0){
+    if(strcmp(command,ADD_NEIGHBOUR_COMMAND)==0){
         for(i =0; i<10; i++){
             if(is_neighbour_info_not_valid(neighbour[i])){
                 set_node_info(&neighbour[i],boundary,port,"NULL");
@@ -4228,7 +4228,7 @@ static void _update_neighbours_list(char *command, char *port, ZoneBoundary boun
             }
         }
     }
-    else if (strcmp(command,"REMOVE_NEIGHBOUR")==0){
+    else if (strcmp(command,REMOVE_NEIGHBOUR_COMMAND)==0){
         for(i =0; i<10; i++){
             if(!is_neighbour_info_not_valid(neighbour[i]) && strcmp(neighbour[i].request_propogation,port)==0){
                 set_node_info(&neighbour[i],NULL_BOUNDARY,"NULL","NULL");
@@ -4236,7 +4236,7 @@ static void _update_neighbours_list(char *command, char *port, ZoneBoundary boun
             }
         }
     }
-    else if(strcmp(command,"UPDATE_NEIGHBOUR")==0){
+    else if(strcmp(command,UPDATE_NEIGHBOUR_COMMAND)==0){
         for(i =0; i<10; i++){
             if(!is_neighbour_info_not_valid(neighbour[i]) && strcmp(neighbour[i].request_propogation,port)==0){
                 set_node_info(&neighbour[i],boundary,port,"NULL");
@@ -4315,7 +4315,7 @@ static void *node_propagation_thread_routine(void *args){
 
             deleting_key_from_neighbour(buf);
         }
-        else if(!strcmp(buf,"ADD_NEIGHBOUR") || !strcmp(buf,"REMOVE_NEIGHBOUR") || !strcmp(buf,"UPDATE_NEIGHBOUR")){
+        else if(!strcmp(buf,ADD_NEIGHBOUR_COMMAND) || !strcmp(buf,REMOVE_NEIGHBOUR_COMMAND) || !strcmp(buf,UPDATE_NEIGHBOUR_COMMAND)){
             char command[1024],port[1024],boundarystr[1024];
             ZoneBoundary boundary;
             memset(command,'\0',1024);
@@ -4500,15 +4500,15 @@ static void _send_add_remove_update_neighbour_command(char *command,int neighbou
 }
 
 static void _send_remove_neighbour_command(int neighbour_fd,node_info n){
-    _send_add_remove_update_neighbour_command("REMOVE_NEIGHBOUR",neighbour_fd,n);
+    _send_add_remove_update_neighbour_command(REMOVE_NEIGHBOUR_COMMAND,neighbour_fd,n);
 }
 
 static void _send_add_neighbour_command(int neighbour_fd,node_info n){
-    _send_add_remove_update_neighbour_command("ADD_NEIGHBOUR",neighbour_fd,n);
+    _send_add_remove_update_neighbour_command(ADD_NEIGHBOUR_COMMAND,neighbour_fd,n);
 }
 
 static void _send_update_neighbour_command(int neighbour_fd,node_info n){
-    _send_add_remove_update_neighbour_command("UPDATE_NEIGHBOUR",neighbour_fd,n);
+    _send_add_remove_update_neighbour_command(UPDATE_NEIGHBOUR_COMMAND,neighbour_fd,n);
 }
 
 static void update_list_on_neighbour(node_info new_node){

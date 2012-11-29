@@ -632,3 +632,8 @@ void *(*function1)(void *);
 void *(*function2)(void *);
 } function_pointer;
 function_pointer *fp;
+
+//protocol commands
+#define ADD_NEIGHBOUR_COMMAND "ADD_NEIGHBOUR"
+#define REMOVE_NEIGHBOUR_COMMAND "REMOVE_NEIGHBOUR"
+#define UPDATE_NEIGHBOUR_COMMAND "UPDATE_NEIGHBOUR"
