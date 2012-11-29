@@ -4236,8 +4236,13 @@ static void _update_neighbours_list(char *command, char *port, ZoneBoundary boun
             }
         }
     }
-    else if(strcmp(command,"ADD_NEIGHBOUR")==0){
-
+    else if(strcmp(command,"UPDATE_NEIGHBOUR")==0){
+        for(i =0; i<10; i++){
+            if(!is_neighbour_info_not_valid(neighbour[i]) && strcmp(neighbour[i].request_propogation,port)==0){
+                set_node_info(&neighbour[i],boundary,port,"NULL");
+                break;
+            }
+        }
     }
     else fprintf(stderr,"Invalid neighbour list change command %s\n",command);
 
