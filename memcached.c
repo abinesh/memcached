@@ -2843,16 +2843,26 @@ static void mylist_delete(my_list *list, char* v) {
 }
 
 /*Ending list functions*/
+
+static void serialize_boundary(ZoneBoundary b, char *s) {
+	sprintf(s, "[(%f,%f) to (%f,%f)]", b.from.x, b.from.y, b.to.x, b.to.y);
+}
+
+static void deserialize_boundary(char *s, ZoneBoundary *b) {
+	sscanf(s, "[(%f,%f) to (%f,%f)]", &(b->from.x), &(b->from.y), &(b->to.x),
+			&(b->to.y));
+}
+/// Start of functions common to bootstrap
+static void sigchld_handler(int s) {
+	while (waitpid(-1, NULL, WNOHANG) > 0);
+}
+
 // get sockaddr, IPv4 or IPv6:
 static void *get_in_addr(struct sockaddr *sa) {
 	if (sa->sa_family == AF_INET) {
 		return &(((struct sockaddr_in*) sa)->sin_addr);
 	}
 	return &(((struct sockaddr_in6*) sa)->sin6_addr);
-}
-
-static void sigchld_handler(int s) {
-	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 static int receive_connection_from_client(int server_sock_fd, char *caller){
@@ -2928,6 +2938,36 @@ static int listen_on(char *port,char *caller){
 
     return sockfd;
 }
+
+static ZoneBoundary* _recv_boundary_from_neighbour(int child_fd) {
+	char buf[1024];
+	int MAXDATASIZE = 1024;
+	memset(buf, '\0', 1024);
+	if (recv(child_fd, buf, MAXDATASIZE-1, 0) == -1) {
+        perror("recv");
+        exit(1);
+    }
+	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
+	deserialize_boundary(buf, child_boundary);
+	fprintf(stderr,"Received %s\n",buf);
+	return child_boundary;
+}
+
+
+static float calculate_area(ZoneBoundary bounds)
+{
+	Point from,to;
+	from.x=bounds.from.x;
+	from.y=bounds.from.y;
+	to.x=bounds.to.x;
+	to.y=bounds.to.y;
+	float area;
+	fprintf(stderr,"\npoints::%f,%f,%f,%f\n",to.x,from.x,to.y,from.y);
+	area= (to.x - from.x)* (to.y-from.y);
+	fprintf(stderr,"%f",(to.x - from.x)*(to.y-from.y));
+	return area;
+}
+//////////// End of functions common to bootstrap.c
 
 static int connect_to(char *ip_address,char *port,char *caller){
     int sockfd;
@@ -3858,15 +3898,6 @@ static void process_slabs_automove_command(conn *c, token_t *tokens,
 	return;
 }
 
-static void serialize_boundary(ZoneBoundary b, char *s) {
-	sprintf(s, "[(%f,%f) to (%f,%f)]", b.from.x, b.from.y, b.to.x, b.to.y);
-}
-
-static void deserialize_boundary(char *s, ZoneBoundary *b) {
-	sscanf(s, "[(%f,%f) to (%f,%f)]", &(b->from.x), &(b->from.y), &(b->to.x),
-			&(b->to.y));
-}
-
 static void store_key_value(char *key, int flags, int time, int length,
 		char* value) {
 	item *it;
@@ -4248,20 +4279,6 @@ static void _update_neighbours_list(char *command, char *propagation_port_number
 
 }
 
-static ZoneBoundary* _recv_boundary_from_neighbour(int child_fd) {
-	char buf[1024];
-	int MAXDATASIZE = 1024;
-	memset(buf, '\0', 1024);
-	if (recv(child_fd, buf, MAXDATASIZE-1, 0) == -1) {
-        perror("recv");
-        exit(1);
-    }
-	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
-	deserialize_boundary(buf, child_boundary);
-	fprintf(stderr,"Received %s\n",buf);
-	return child_boundary;
-}
-
 static void *node_propagation_thread_routine(void *args){
 	if(settings.verbose>1)
 	        fprintf(stderr,"in node_propagation_thread_routine\n");
@@ -4447,7 +4464,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             send(new_fd,buf,strlen(buf),0);
             ///
 
-            _process_dying_childs_neighbours(new_fd,merged_boundary);
+//            _process_dying_childs_neighbours(new_fd,merged_boundary);
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
@@ -4721,43 +4738,33 @@ static void *join_request_listener_thread_routine(void * args) {
 	return 0;
 }
 
-
-static void inform_departure_to_bootstrap(char *port_number){
-	int sockfd=-1;
-	char str[1024],str2[1024];
-	char parent_boundary_str[1024];
-
-	strcpy(join_server_ip_address,"localhost");
-	fprintf(stderr,"\nBootstrap node removal routine is at %s:%s\n",join_server_ip_address,port_number);
-	sockfd= connect_to(join_server_ip_address, port_number,"inform_departure_to_bootstrap");
-
-    serialize_boundary(me.boundary,str);
-
+static void send_parent_and_my_info_to_bootstrap(char *port_number){
+    int sockfd=-1;
+    char str[1024],str2[1024];
+    char parent_boundary_str[1024];
+    
+    fprintf(stderr,"\nBootstrap node removal routine is at %s:%s\n","localhost",port_number);
+    sockfd= connect_to("localhost", port_number,"send_parent_and_my_info_to_bootstrap");
+    
     //sending my boundary
+    serialize_boundary(me.boundary,str);
     send(sockfd,str,strlen(str),0);
-
     usleep(1000);
-
-  //sending my join req port number
+    
+    //sending my join req port number
     sprintf(str2,"%s",me.join_request);
-
-   send(sockfd,str2,strlen(str2),0);
-
-
-
-   serialize_boundary(parent, parent_boundary_str);
-
-   //sending parent bondary
-   usleep(1000);
-   send(sockfd,parent_boundary_str,strlen(parent_boundary_str),0);
-
-   //sending parent join req port
-   usleep(1000);
-      send(sockfd,join_server_port_number,strlen(join_server_port_number),0);
-
-	close(sockfd);
-
-
+    send(sockfd,str2,strlen(str2),0);
+    serialize_boundary(parent, parent_boundary_str);
+    
+    //sending parent bondary
+    usleep(1000);
+    send(sockfd,parent_boundary_str,strlen(parent_boundary_str),0);
+    
+    //sending parent join req port
+    usleep(1000);
+    send(sockfd,join_server_port_number,strlen(join_server_port_number),0);
+    
+    close(sockfd);
 }
 
 
@@ -4834,7 +4841,7 @@ static void *connect_and_split_thread_routine(void *args) {
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
 
-    inform_departure_to_bootstrap("11312");
+    send_parent_and_my_info_to_bootstrap("11312");
 
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
 	print_ecosystem();
@@ -4847,19 +4854,6 @@ static void _send_my_boundary_to(int another_node_fd) {
 	send(another_node_fd, buf, strlen(buf), 0);
 }
 
-static float calculate_area(ZoneBoundary bounds)
-{
-	Point from,to;
-	from.x=bounds.from.x;
-	from.y=bounds.from.y;
-	to.x=bounds.to.x;
-	to.y=bounds.to.y;
-	float area;
-	fprintf(stderr,"\npoints::%f,%f,%f,%f\n",to.x,from.x,to.y,from.y);
-	area= (to.x - from.x)* (to.y-from.y);
-	fprintf(stderr,"%f",(to.x - from.x)*(to.y-from.y));
-	return area;
-}
 
 
 static void find_smallest_neighbour(node_info *found_neighbour)
@@ -4929,14 +4923,8 @@ static void process_die_command(conn *c) {
 	fprintf(stderr, "Trashing keys in parent and child:\n");
 	_trash_keys_in_both_nodes(sockfd, trash_both);
 
-
-
 	///
-
-
-
-	inform_departure_to_bootstrap("11313");
-
+	send_parent_and_my_info_to_bootstrap("11313");
 	//
 	serialize_boundary(me.boundary,buf);
 	out_string(c, "Die command complete\r\n");

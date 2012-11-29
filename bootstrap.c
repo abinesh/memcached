@@ -29,20 +29,28 @@ void init_boundary(ZoneBoundary *b){
     b->to.y = 0;
 }
 
+
+/// Start of functions common to kmain.c
+
 static void serialize_boundary(ZoneBoundary b, char *s) {
 	sprintf(s, "[(%f,%f) to (%f,%f)]", b.from.x, b.from.y, b.to.x, b.to.y);
 }
 
+static void deserialize_boundary(char *s, ZoneBoundary *b) {
+	sscanf(s, "[(%f,%f) to (%f,%f)]", &(b->from.x), &(b->from.y), &(b->to.x),
+			&(b->to.y));
+}
+/// Start of functions common to bootstrap
 static void sigchld_handler(int s) {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
+
 // get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
+static void *get_in_addr(struct sockaddr *sa) {
 	if (sa->sa_family == AF_INET) {
-	    return &(((struct sockaddr_in*)sa)->sin_addr);
+		return &(((struct sockaddr_in*) sa)->sin_addr);
 	}
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+	return &(((struct sockaddr_in6*) sa)->sin6_addr);
 }
 
 static int receive_connection_from_client(int server_sock_fd, char *caller){
@@ -65,7 +73,7 @@ static int receive_connection_from_client(int server_sock_fd, char *caller){
 }
 
 static int listen_on(char *port,char *caller){
-    int sockfd=-1;
+    int sockfd=-1; // listen on sock_fd, new connection on new_fd
 	struct sigaction sa;
    	struct addrinfo hints, *servinfo, *p;
    	int rv;
@@ -115,8 +123,41 @@ static int listen_on(char *port,char *caller){
     perror("sigaction");
     exit(1);
     }
+
     return sockfd;
 }
+
+// This function will be used in this file soon.
+//static ZoneBoundary* _recv_boundary_from_neighbour(int child_fd) {
+//	char buf[1024];
+//	int MAXDATASIZE = 1024;
+//	memset(buf, '\0', 1024);
+//	if (recv(child_fd, buf, MAXDATASIZE-1, 0) == -1) {
+//        perror("recv");
+//        exit(1);
+//    }
+//	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
+//	deserialize_boundary(buf, child_boundary);
+//	fprintf(stderr,"Received %s\n",buf);
+//	return child_boundary;
+//}
+
+
+static float calculate_area(ZoneBoundary bounds)
+{
+	Point from,to;
+	from.x=bounds.from.x;
+	from.y=bounds.from.y;
+	to.x=bounds.to.x;
+	to.y=bounds.to.y;
+	float area;
+	fprintf(stderr,"\npoints::%f,%f,%f,%f\n",to.x,from.x,to.y,from.y);
+	area= (to.x - from.x)* (to.y-from.y);
+	fprintf(stderr,"%f",(to.x - from.x)*(to.y-from.y));
+	return area;
+}
+
+/// End of functions common to kmain.c
 
 static int find_port(){
 	struct addrinfo hints, *servinfo, *p;
@@ -181,19 +222,6 @@ static int cluster_has_nodes(){
     }
     // Did not find any node in the list
     return -1;
-}
-
-static float calculate_area(ZoneBoundary bounds)
-{
-	Point from,to;
-	from.x=bounds.from.x;
-	from.y=bounds.from.y;
-	to.x=bounds.to.x;
-	to.y=bounds.to.y;
-	float area;
-
-	area= (to.x - from.x)* (to.y-from.y);
-	return area;
 }
 
 static int find_node_to_join(){
@@ -295,11 +323,6 @@ static void *node_addition_routine(void *arg){
         close(new_fd); // parent doesn't need this
         print_list_of_nodes_in_cluster();
     }
-}
-
-static void deserialize_boundary(char *s, ZoneBoundary *b) {
-	sscanf(s, "[(%f,%f) to (%f,%f)]", &(b->from.x), &(b->from.y), &(b->to.x),
-			&(b->to.y));
 }
 
 static void save_boundaries(char *port_number,ZoneBoundary *my_boundary){
