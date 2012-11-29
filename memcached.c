@@ -4253,7 +4253,7 @@ static void *node_propagation_thread_routine(void *args){
 
 			getting_key_from_neighbour(buf, new_fd);
 		}
-		if (!strcmp(buf, "set")) {
+		else if (!strcmp(buf, "set")) {
 			memset(buf, '\0', 1024);
 			if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
 				perror("recv");
@@ -4261,21 +4261,57 @@ static void *node_propagation_thread_routine(void *args){
 			}
                 sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
                 updating_key_from_neighbour(key,flag,time,length,value);
-    		}
-    		else if(!strcmp(buf,"delete"))
-			{
-				memset(buf,'\0',1024);
-				if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-					perror("recv");
-					exit(1);
-				}
-
-				deleting_key_from_neighbour(buf);
-			}
-            close(new_fd);
         }
+        else if(!strcmp(buf,"delete"))
+        {
+            memset(buf,'\0',1024);
+            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
 
-		close(new_fd); // parent doesn't need this
+            deleting_key_from_neighbour(buf);
+        }
+        else if(!strcmp(buf,"ADD_NEIGHBOUR")){
+            fprintf(stderr,"ADD_NEIGHBOUR command received\n");
+            memset(buf,'\0',1024);
+            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+            fprintf(stderr,"Received %s\n",buf);
+
+            memset(buf,'\0',1024);
+            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+            fprintf(stderr,"Received %s\n",buf);
+
+            print_ecosystem();
+
+        }
+        else if(!strcmp(buf,"REMOVE_NEIGHBOUR")){
+            fprintf(stderr,"REMOVE_NEIGHBOUR command received\n");
+            memset(buf,'\0',1024);
+            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+            fprintf(stderr,"Received %s\n",buf);
+
+            memset(buf,'\0',1024);
+            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+
+            fprintf(stderr,"Received %s\n",buf);
+            print_ecosystem();
+        }
+    }
+
+    close(sockfd);
 	return 0;
 }
 
@@ -4304,24 +4340,24 @@ static ZoneBoundary* _merge_boundaries(ZoneBoundary *a, ZoneBoundary *b) {
 
 static void remove_from_neighbour_list(ZoneBoundary *a){
 	int counter;
-		for(counter=0;counter<10;counter++)
-					{
-						if(neighbour[counter].boundary.from.x==a->from.x && neighbour[counter].boundary.from.y==a->from.y &&
-								neighbour[counter].boundary.to.x==a->to.x && neighbour[counter].boundary.to.y==a->to.y)
-						{
-							fprintf(stderr,"\n---removing neighbour from list\n");
-							fprintf(stderr,"\n---%f,%f,%f,%f\n",a->from.x ,a->from.y,a->to.x,a->to.y);
-							neighbour[counter].boundary.from.x=0;
-							neighbour[counter].boundary.from.y=0;
-							neighbour[counter].boundary.to.x=0;
-							neighbour[counter].boundary.to.y=0;
-							strcpy(neighbour[counter].node_removal,"NULL");
-							strcpy(neighbour[counter].request_propogation,"NULL");
-							break;
-						}
-						else
-							continue;
-					}
+    for(counter=0;counter<10;counter++)
+    {
+        if(neighbour[counter].boundary.from.x==a->from.x && neighbour[counter].boundary.from.y==a->from.y &&
+                neighbour[counter].boundary.to.x==a->to.x && neighbour[counter].boundary.to.y==a->to.y)
+        {
+            fprintf(stderr,"\n---removing neighbour from list\n");
+            fprintf(stderr,"\n---%f,%f,%f,%f\n",a->from.x ,a->from.y,a->to.x,a->to.y);
+            neighbour[counter].boundary.from.x=0;
+            neighbour[counter].boundary.from.y=0;
+            neighbour[counter].boundary.to.x=0;
+            neighbour[counter].boundary.to.y=0;
+            strcpy(neighbour[counter].node_removal,"NULL");
+            strcpy(neighbour[counter].request_propogation,"NULL");
+            break;
+        }
+        else
+            continue;
+    }
 
 }
 
@@ -4409,18 +4445,55 @@ static int is_neighbour_info_not_valid(node_info n){
     return !strcmp(n.node_removal,"NULL") && !strcmp(n.request_propogation,"NULL");
 }
 
+static void _send_add_remove_neighbour_command(char *command,int neighbour_fd,node_info n){
+    char buf[1024];
+    usleep(1000);
+    fprintf(stderr,"Sending %s\n",command);
+    if (send(neighbour_fd,command,strlen(command),0)==-1)
+        perror("send");
+
+    usleep(1000);
+    memset(buf,'\0',1024);
+    sprintf(buf,"%s",n.request_propogation);
+    fprintf(stderr,"Sending %s\n",buf);
+    if (send(neighbour_fd,buf,strlen(buf),0) == -1)
+        perror("send");
+
+    usleep(1000);
+    memset(buf,'\0',1024);
+    serialize_boundary(n.boundary,buf);
+    fprintf(stderr,"Sending %s\n",buf);
+    if (send(neighbour_fd,buf,strlen(buf),0) == -1)
+        perror("send");
+}
+
+static void _send_remove_neighbour_command(int neighbour_fd,node_info n){
+    _send_add_remove_neighbour_command("REMOVE_NEIGHBOUR",neighbour_fd,n);
+}
+
+static void _send_add_neighbour_command(int neighbour_fd,node_info n){
+    _send_add_remove_neighbour_command("ADD_NEIGHBOUR",neighbour_fd,n);
+}
+
 static void update_neighbours_list(node_info new_node){
     int counter =0;
     for(counter = 0;counter < 10; counter++){
         if(!is_neighbour_info_not_valid(neighbour[counter])){
-            int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
-            neighbour_fd++;
             // Make sure to use new_me instead of me
             if(is_neighbour(new_node,me)!=1){
                 //remove me from neighbour
+                int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
+                fprintf(stderr,"Removing me from neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
+                _send_remove_neighbour_command(neighbour_fd,me);
+                close(neighbour_fd);
             }
+            usleep(1000);
             if(is_neighbour(new_node,neighbour[counter])){
                 //add new node to neighbour
+                int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
+                fprintf(stderr,"Removing new node to neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
+                _send_add_neighbour_command(neighbour_fd,new_node);
+                close(neighbour_fd);
             }
         }
     }
@@ -4538,10 +4611,6 @@ static void *join_request_listener_thread_routine(void * args) {
         my_new_boundary.to.x = x1 + (x2 - x1) / 2;
         my_new_boundary.to.y = y2;
 
-
-
-
-
         if (settings.verbose > 1) {
             fprintf(stderr, "Client boundary");
             print_boundaries(client_boundary);
@@ -4556,28 +4625,21 @@ static void *join_request_listener_thread_routine(void * args) {
         serialize_boundary(client_boundary, client_boundary_str);
         serialize_boundary(my_new_boundary, my_new_boundary_str);
 
-
-
-
-
         mylist_init(&trash_both);
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
 
 		usleep(1000);
-		if (send(new_fd, my_new_boundary_str, strlen(my_new_boundary_str), 0)
-						== -1)
-					perror("send");
+		if (send(new_fd, my_new_boundary_str, strlen(my_new_boundary_str), 0) == -1)
+            perror("send");
 
 		serialize_port_numbers(me.request_propogation, me.node_removal,buf);
 
 		usleep(1000);
 		fprintf(stderr,"\nsending portnumbers:%s\n",buf);
 
-		if (send(new_fd, buf, strlen(buf), 0)
-				== -1)
+		if (send(new_fd, buf, strlen(buf), 0) == -1)
 			perror("send");
-
 
 		//receiving client port num
 	    memset(buf, '\0', 1024);
@@ -4588,12 +4650,12 @@ static void *join_request_listener_thread_routine(void * args) {
 
         deserialize_port_numbers2(buf,neighbour_request_propogation,neighbour_node_removal);
 
-        send_neighbours_to_child(new_fd);
         node_info new_node;
         new_node.boundary=client_boundary;
         sprintf(new_node.node_removal,"%s",neighbour_node_removal);
         sprintf(new_node.request_propogation,"%s",neighbour_request_propogation);
         update_neighbours_list(new_node);
+        send_neighbours_to_child(new_fd);
 
         for(counter=0;counter<10;counter++)
         {
