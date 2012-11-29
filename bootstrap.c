@@ -127,20 +127,19 @@ static int listen_on(char *port,char *caller){
     return sockfd;
 }
 
-// This function will be used in this file soon.
-//static ZoneBoundary* _recv_boundary_from_neighbour(int child_fd) {
-//	char buf[1024];
-//	int MAXDATASIZE = 1024;
-//	memset(buf, '\0', 1024);
-//	if (recv(child_fd, buf, MAXDATASIZE-1, 0) == -1) {
-//        perror("recv");
-//        exit(1);
-//    }
-//	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
-//	deserialize_boundary(buf, child_boundary);
-//	fprintf(stderr,"Received %s\n",buf);
-//	return child_boundary;
-//}
+static ZoneBoundary* _recv_boundary_from_neighbour(int child_fd) {
+	char buf[1024];
+	int MAXDATASIZE = 1024;
+	memset(buf, '\0', 1024);
+	if (recv(child_fd, buf, MAXDATASIZE-1, 0) == -1) {
+        perror("recv");
+        exit(1);
+    }
+	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
+	deserialize_boundary(buf, child_boundary);
+	fprintf(stderr,"Received %s\n",buf);
+	return child_boundary;
+}
 
 
 static float calculate_area(ZoneBoundary bounds)
@@ -325,22 +324,22 @@ static void *node_addition_routine(void *arg){
     }
 }
 
-static void save_boundaries(char *port_number,ZoneBoundary *my_boundary){
+static void save_boundaries(char *port_number,ZoneBoundary b){
 	int counter;
 	for(counter=0;counter<10;counter++)
 	{
 		if(!strcmp(nodes[counter].join_request,port_number))
 		{
-			nodes[counter].boundary.from.x=my_boundary->from.x;
-			nodes[counter].boundary.from.y=my_boundary->from.y;
-			nodes[counter].boundary.to.x=my_boundary->to.x;
-			nodes[counter].boundary.to.y=my_boundary->to.y;
+			nodes[counter].boundary.from.x=b.from.x;
+			nodes[counter].boundary.from.y=b.from.y;
+			nodes[counter].boundary.to.x=b.to.x;
+			nodes[counter].boundary.to.y=b.to.y;
 			break;
 		}
 	}
 }
 
-static void remove_node(char *port_number,ZoneBoundary *my_boundary){
+static void remove_node(char *port_number,ZoneBoundary b){
 	int counter;
 	for(counter=0;counter<10;counter++)
 	{
@@ -357,10 +356,7 @@ static void *metadata_update_routine(void *arg){
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
     int numbytes;
     char buf[1024],port_number[255],parent_port_number[255];
-    ZoneBoundary *my_boundary;
-    my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
-    ZoneBoundary *parent_boundary;
-    parent_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
+    ZoneBoundary my_boundary,parent_boundary;
 
     sockfd = listen_on(METADATA_UPDATE_PORT,"metadata_update_routine");
 	printf("metadata_update_routine, port %s: waiting for connections...\n", METADATA_UPDATE_PORT);
@@ -369,13 +365,7 @@ static void *metadata_update_routine(void *arg){
         new_fd = receive_connection_from_client(sockfd,"metadata_update_routine");
 
         //receiving child boundary
-        memset(buf, '\0', 1024);
-        if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
-            perror("rec");
-            exit(1);
-        }
-        
-        deserialize_boundary(buf,my_boundary);
+        my_boundary = *(_recv_boundary_from_neighbour(new_fd));
         
         //receiving child port number
         memset(buf, '\0', 1024);
@@ -389,13 +379,8 @@ static void *metadata_update_routine(void *arg){
         save_boundaries(port_number,my_boundary);
         
         //receiving parent boundary
-        memset(buf, '\0', 1024);
-        if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
-            perror("rec");
-            exit(1);
-        }
-        
-        deserialize_boundary(buf,parent_boundary);
+        parent_boundary = *(_recv_boundary_from_neighbour(new_fd));
+
         
         //receiving parent port
         memset(buf, '\0', 1024);
@@ -417,10 +402,7 @@ static void *node_depature_routine(void *arg){
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
     int numbytes;
     char buf[1024],port_number[255],parent_port_number[255];
-    ZoneBoundary *my_boundary;
-    my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
-    ZoneBoundary *parent_boundary;
-    parent_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
+    ZoneBoundary my_boundary,parent_boundary;
     sockfd = listen_on(NODE_DEPARTURE_PORT,"node_depature_routine");
 
     printf("node_depature_routine, port %s: waiting for connections...\n",NODE_DEPARTURE_PORT);
@@ -429,14 +411,8 @@ static void *node_depature_routine(void *arg){
         new_fd = receive_connection_from_client(sockfd,"node_depature_routin");
 
         //receiving child boundary
-        memset(buf, '\0', 1024);
-        if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
-            perror("rec");
-            exit(1);
-        }
-        
-        fprintf(stderr,"\nchild boundary recv:%s\n",buf);
-        deserialize_boundary(buf,my_boundary);
+        my_boundary = *(_recv_boundary_from_neighbour(new_fd));
+
         
         //receiving child port number
         memset(buf, '\0', 1024);
@@ -450,15 +426,8 @@ static void *node_depature_routine(void *arg){
         remove_node(port_number,my_boundary);
         
         //receiving parent boundary
-        memset(buf, '\0', 1024);
-        if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
-            perror("rec");
-            exit(1);
-        }
-        
-        fprintf(stderr,"\nparent boundary recv:%s\n",buf);
-        deserialize_boundary(buf,parent_boundary);
-        
+        parent_boundary = *(_recv_boundary_from_neighbour(new_fd));
+
         //receiving parent port
         memset(buf, '\0', 1024);
         if ((numbytes = recv(new_fd, buf,1024, 0)) == -1) {
