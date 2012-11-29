@@ -4248,6 +4248,20 @@ static void _update_neighbours_list(char *command, char *port, ZoneBoundary boun
 
 }
 
+static ZoneBoundary* _recv_boundary_from_child(int child_fd) {
+	char buf[1024];
+	int MAXDATASIZE = 1024;
+	memset(buf, '\0', 1024);
+	if (recv(child_fd, buf, MAXDATASIZE-1, 0) == -1) {
+        perror("recv");
+        exit(1);
+    }
+	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
+	deserialize_boundary(buf, child_boundary);
+	fprintf(stderr,"Received %s\n",buf);
+	return child_boundary;
+}
+
 static void *node_propagation_thread_routine(void *args){
 	if(settings.verbose>1)
 	        fprintf(stderr,"in node_propagation_thread_routine\n");
@@ -4342,14 +4356,8 @@ static void *node_propagation_thread_routine(void *args){
             fprintf(stderr,"Received %s\n",buf);
             sprintf(port,"%s",buf);
 
-            memset(buf,'\0',1024);
-            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-            fprintf(stderr,"Received %s\n",buf);
-            sprintf(boundarystr,"%s",buf);
-            deserialize_boundary(boundarystr,&boundary);
+            boundary = *(_recv_boundary_from_child(new_fd));
+
             _update_neighbours_list(command,port,boundary);
             print_ecosystem();
         }
@@ -4358,17 +4366,6 @@ static void *node_propagation_thread_routine(void *args){
 
     close(sockfd);
 	return 0;
-}
-
-static ZoneBoundary* _recv_boundary_from_child(int child_fd) {
-	char buf[1024];
-	int MAXDATASIZE = 1024;
-	memset(buf, '\0', 1024);
-	recv(child_fd, buf, MAXDATASIZE - 1, 0);
-	ZoneBoundary *child_boundary = (ZoneBoundary *) malloc(
-			sizeof(ZoneBoundary));
-	deserialize_boundary(buf, child_boundary);
-	return child_boundary;
 }
 
 static ZoneBoundary* _merge_boundaries(ZoneBoundary *a, ZoneBoundary *b) {
@@ -4442,15 +4439,12 @@ static void *node_removal_listener_thread_routine(void *args) {
     		ZoneBoundary *child_boundary = _recv_boundary_from_child(new_fd);
             ZoneBoundary *merged_boundary = _merge_boundaries(&me.boundary,child_boundary);
 
-
-
             ////
             usleep(1000*10);
             serialize_boundary(*merged_boundary,buf);
 
             send(new_fd,buf,strlen(buf),0);
             ///
-
 
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
@@ -4461,8 +4455,6 @@ static void *node_removal_listener_thread_routine(void *args) {
             fprintf(stderr,"My new boundary is:\n");
             print_boundaries(me.boundary);
             print_boundaries(my_new_boundary);
-
-
 
             close(new_fd);
 
@@ -4781,30 +4773,17 @@ static void *connect_and_split_thread_routine(void *args) {
     sockfd = connect_to(join_server_ip_address, join_server_port_number,"connect_and_split_thread_routine");
 
 	//receiving self boundary
-	memset(buf, '\0', 1024);
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
-
-	deserialize_boundary(buf, &me.boundary);
+	me.boundary = *(_recv_boundary_from_child(sockfd));
 	me.boundary=me.boundary;
 	fprintf(stderr, "client's boundary assigned by server\n");
 
 	print_boundaries(me.boundary);
 
 ////receiving neighbours boundary
-	memset(buf, '\0', 1024);
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
+    neighbour_boundary = *(_recv_boundary_from_child(sockfd));
 
-		deserialize_boundary(buf, &neighbour_boundary);
-
-		parent=neighbour_boundary;
-
-		fprintf(stderr, "client received neighbours boundary\n");
+    parent=neighbour_boundary;
+    fprintf(stderr, "client received neighbours boundary\n");
 
 
 	/////////receiving portnumbers
@@ -4922,8 +4901,11 @@ static void process_die_command(conn *c) {
 	//parent.from.=found_neighbour->boundary.from.x;
 
 	fprintf(stderr,"\nneighbour.node_removal=%s\n",found_neighbour->node_removal);
-	sockfd = connect_to(join_server_ip_address, found_neighbour->node_removal,"process_die_command");
-
+	sockfd = connect_to("localhost", found_neighbour->node_removal,"process_die_command");
+    if(sockfd == -1){
+        fprintf(stderr,"Did not connect to neighbour.node_removal port no %s",found_neighbour->node_removal);
+        exit(-1);
+    }
 	fprintf(stderr, "In process_die_command\n");
     mode = MERGING_CHILD_INIT;
     fprintf(stderr, "Mode changed: NORMAL_NODE -> MERGING_CHILD_INIT\n");
@@ -4931,12 +4913,7 @@ static void process_die_command(conn *c) {
    //usleep(1000*1000*5);
 	_send_my_boundary_to(sockfd);
 
-
-	memset(buf, '\0', 1024);
-			recv(sockfd, buf, 1024, 0);
-		fprintf(stderr,"\n---------------------------------buf recv:%s\n",buf);
-		deserialize_boundary(buf,&parent);
-
+    parent = *(_recv_boundary_from_child(sockfd));
 
     mode = MERGING_CHILD_MIGRATING;
     fprintf(stderr, "Mode changed: MERGING_CHILD_INIT -> MERGING_CHILD_MIGRATING\n");
@@ -6536,15 +6513,7 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 	sprintf(me.join_request,"%s",buf);
 
 	//receiving world boundaries
-	memset(buf,'\0',1024);
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-		}
-
-	printf("client: received '%s'\n",buf);
-
-	deserialize_boundary(buf,&world_boundary);
+    world_boundary = *(_recv_boundary_from_child(sockfd));
 	me.boundary=world_boundary;
 
 
