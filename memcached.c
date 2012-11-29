@@ -3114,7 +3114,7 @@ static void print_all_boundaries() {
 		fprintf(stderr, "World boundary:");
 		print_boundaries(world_boundary);
 		fprintf(stderr, "My boundary:");
-		print_boundaries(my_boundary);
+		print_boundaries(me.boundary);
 		fprintf(stderr, "My new boundary:");
 		print_boundaries(my_new_boundary);
 	}
@@ -3186,11 +3186,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 						resolved_point.x, resolved_point.y);
 
             if(mode == NORMAL_NODE){
-                if(is_within_boundary(resolved_point,my_boundary)==1){
+                if(is_within_boundary(resolved_point,me.boundary)==1){
                     it = item_get(key, nkey);
                 }
                 else{
-                    fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+                    fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
 
                     node_info info = get_neighbour_information(key);
                     request_neighbour(key,buf,"get",&info);
@@ -3785,11 +3785,11 @@ static void process_delete_command(conn *c, token_t *tokens,
 	Point resolved_point = key_point(key);
 
     if(mode == NORMAL_NODE){
-        if(is_within_boundary(resolved_point,my_boundary)==1){
+        if(is_within_boundary(resolved_point,me.boundary)==1){
           _normal_delete_operation(c,key,nkey);
         }
         else{
-            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
             node_info info = get_neighbour_information(key);
             request_neighbour(key,buf,"delete",&info);
             out_string(c, "DELETED");
@@ -4050,7 +4050,7 @@ static void* _parent_split_migrate_phase(void *arg){
     _trash_keys_in_both_nodes(child_fd, trash_both);
 
     close(child_fd); // parent doesn't need this
-    my_boundary = my_new_boundary;
+    me.boundary = my_new_boundary;
     print_all_boundaries();
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_PARENT_MIGRATING -> NORMAL_NODE\n");
@@ -4077,10 +4077,10 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	char key_value_str[1024],buf[1024];
 	Point resolved_point = key_point(key);
 	if(mode == NORMAL_NODE){
-	    if(is_within_boundary(resolved_point,my_boundary)==1)
+	    if(is_within_boundary(resolved_point,me.boundary)==1)
     	    it = item_get(key, strlen(key));
         else{
-            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
 
             node_info info = get_neighbour_information(key);
             request_neighbour(key,buf,"get",&info);
@@ -4128,7 +4128,7 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
     item *it =  it = item_get(key_to_transfer, strlen(key_to_transfer));
 
     Point resolved_point = key_point(key_to_transfer);
-    if (is_within_boundary(resolved_point, my_boundary) != 1) {
+    if (is_within_boundary(resolved_point, me.boundary) != 1) {
         fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
 
         sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
@@ -4174,11 +4174,11 @@ static void updating_key_from_neighbour(char *key, int flags, int time, int leng
 static void deleting_key_from_neighbour(char *key){
     if(mode == NORMAL_NODE){
     	Point resolved_point = key_point(key);
-        if(is_within_boundary(resolved_point,my_boundary)==1){
+        if(is_within_boundary(resolved_point,me.boundary)==1){
             delete_key_locally(key);
         }
         else{
-            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_boundary.from.x,my_boundary.from.y,my_boundary.to.x,my_boundary.to.y);
+            fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
             node_info info = get_neighbour_information(key);
             char buf[1024];
             request_neighbour(key,buf,"delete",&info);
@@ -4359,7 +4359,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             fprintf(stderr,"Mode changed: NORMAL_NODE -> MERGING_PARENT_INIT\n");
 
     		ZoneBoundary *child_boundary = _recv_boundary_from_child(new_fd);
-            ZoneBoundary *merged_boundary = _merge_boundaries(&my_boundary,child_boundary);
+            ZoneBoundary *merged_boundary = _merge_boundaries(&me.boundary,child_boundary);
 
 
 
@@ -4375,10 +4375,10 @@ static void *node_removal_listener_thread_routine(void *args) {
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
             _receive_keys_and_trash_keys(new_fd);
-            my_boundary = *merged_boundary;
-            my_new_boundary = my_boundary;
+            me.boundary = *merged_boundary;
+            my_new_boundary = me.boundary;
             fprintf(stderr,"My new boundary is:\n");
-            print_boundaries(my_boundary);
+            print_boundaries(me.boundary);
             print_boundaries(my_new_boundary);
 
 
@@ -4504,7 +4504,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	    exit(-1);
 	}
 	char neighbour_request_propogation[1024], neighbour_node_removal[1024];
-    my_new_boundary = my_boundary;
+    my_new_boundary = me.boundary;
 
     fprintf(stderr,"\nin join req....me.joinport:%s\n",me.join_request);
     
@@ -4546,7 +4546,7 @@ static void *join_request_listener_thread_routine(void * args) {
             fprintf(stderr, "Client boundary");
             print_boundaries(client_boundary);
             fprintf(stderr, "My boundary");
-            print_boundaries(my_boundary);
+            print_boundaries(me.boundary);
             fprintf(stderr, "My new boundary");
             print_boundaries(my_new_boundary);
         }
@@ -4626,7 +4626,7 @@ static void connect_to_bootstrap2(char *port_number){
 	fprintf(stderr,"\nBootstrap node removal routine is at %s:%s\n",join_server_ip_address,port_number);
 	sockfd= connect_to(join_server_ip_address, port_number,"connect_to_boostrap2");
 
-    serialize_boundary(my_boundary,str);
+    serialize_boundary(me.boundary,str);
 
     //sending my boundary
     send(sockfd,str,strlen(str),0);
@@ -4661,6 +4661,7 @@ static void *connect_and_split_thread_routine(void *args) {
 	int MAXDATASIZE = 1024;
 	char buf[MAXDATASIZE];
 	int counter;
+	ZoneBoundary neighbour_boundary;
 
 	char neighbour_request_propogation[1024],
     neighbour_node_removal[1024];//, me_request_propogation[1024],
@@ -4675,8 +4676,8 @@ static void *connect_and_split_thread_routine(void *args) {
 		exit(1);
 	}
 
-	deserialize_boundary(buf, &my_boundary);
-	me.boundary=my_boundary;
+	deserialize_boundary(buf, &me.boundary);
+	me.boundary=me.boundary;
 	fprintf(stderr, "client's boundary assigned by server\n");
 
 	print_boundaries(me.boundary);
@@ -4750,7 +4751,7 @@ static void *connect_and_split_thread_routine(void *args) {
 
 static void _send_my_boundary_to(int another_node_fd) {
 	char buf[1024];
-	serialize_boundary(my_boundary, buf);
+	serialize_boundary(me.boundary, buf);
 	send(another_node_fd, buf, strlen(buf), 0);
 }
 
@@ -4852,7 +4853,7 @@ static void process_die_command(conn *c) {
 	connect_to_bootstrap2("11313");
 
 	//
-	serialize_boundary(my_boundary,buf);
+	serialize_boundary(me.boundary,buf);
 	out_string(c, "Die command complete\r\n");
 	close(sockfd);
 	exit(0);
@@ -6433,7 +6434,6 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 	printf("client: received '%s'\n",buf);
 
 	deserialize_boundary(buf,&world_boundary);
-	my_boundary=world_boundary;
 	me.boundary=world_boundary;
 
 
@@ -6557,20 +6557,20 @@ while (-1 != (c = getopt(argc, argv, "a:" /* access mask for unix socket */
 
 
 	case 'x':
-		my_boundary.from.x = atof(optarg);
-		world_boundary.from.x = my_boundary.from.x;
+		me.boundary.from.x = atof(optarg);
+		world_boundary.from.x = me.boundary.from.x;
 		break;
 	case 'X':
-		my_boundary.to.x = atof(optarg);
-		world_boundary.to.x = my_boundary.to.x;
+		me.boundary.to.x = atof(optarg);
+		world_boundary.to.x = me.boundary.to.x;
 		break;
 	case 'y':
-		my_boundary.from.y = atof(optarg);
-		world_boundary.from.y = my_boundary.from.y;
+		me.boundary.from.y = atof(optarg);
+		world_boundary.from.y = me.boundary.from.y;
 		break;
 	case 'Y':
-		my_boundary.to.y = atof(optarg);
-		world_boundary.to.y = my_boundary.to.y;
+		me.boundary.to.y = atof(optarg);
+		world_boundary.to.y = me.boundary.to.y;
 		break;
 
 	case 'j':
