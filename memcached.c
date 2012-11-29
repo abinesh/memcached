@@ -4248,7 +4248,7 @@ static void _update_neighbours_list(char *command, char *propagation_port_number
 
 }
 
-static ZoneBoundary* _recv_boundary_from_child(int child_fd) {
+static ZoneBoundary* _recv_boundary_from_neighbour(int child_fd) {
 	char buf[1024];
 	int MAXDATASIZE = 1024;
 	memset(buf, '\0', 1024);
@@ -4357,7 +4357,7 @@ static void *node_propagation_thread_routine(void *args){
             fprintf(stderr,"Received %s\n",buf);
             deserialize_port_numbers2(buf,propagation_port_number,removal_port_number);
 
-            boundary = *(_recv_boundary_from_child(new_fd));
+            boundary = *(_recv_boundary_from_neighbour(new_fd));
 
             _update_neighbours_list(command,propagation_port_number,removal_port_number,boundary);
             print_ecosystem();
@@ -4437,7 +4437,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             mode = MERGING_PARENT_INIT;
             fprintf(stderr,"Mode changed: NORMAL_NODE -> MERGING_PARENT_INIT\n");
 
-    		ZoneBoundary *child_boundary = _recv_boundary_from_child(new_fd);
+    		ZoneBoundary *child_boundary = _recv_boundary_from_neighbour(new_fd);
             ZoneBoundary *merged_boundary = _merge_boundaries(&me.boundary,child_boundary);
 
             ////
@@ -4447,6 +4447,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             send(new_fd,buf,strlen(buf),0);
             ///
 
+            _process_dying_childs_neighbours(new_fd,merged_boundary);
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
@@ -4721,14 +4722,14 @@ static void *join_request_listener_thread_routine(void * args) {
 }
 
 
-static void connect_to_bootstrap2(char *port_number){
+static void inform_departure_to_bootstrap(char *port_number){
 	int sockfd=-1;
 	char str[1024],str2[1024];
 	char parent_boundary_str[1024];
 
 	strcpy(join_server_ip_address,"localhost");
 	fprintf(stderr,"\nBootstrap node removal routine is at %s:%s\n",join_server_ip_address,port_number);
-	sockfd= connect_to(join_server_ip_address, port_number,"connect_to_boostrap2");
+	sockfd= connect_to(join_server_ip_address, port_number,"inform_departure_to_bootstrap");
 
     serialize_boundary(me.boundary,str);
 
@@ -4774,14 +4775,14 @@ static void *connect_and_split_thread_routine(void *args) {
     sockfd = connect_to(join_server_ip_address, join_server_port_number,"connect_and_split_thread_routine");
 
 	//receiving self boundary
-	me.boundary = *(_recv_boundary_from_child(sockfd));
+	me.boundary = *(_recv_boundary_from_neighbour(sockfd));
 	me.boundary=me.boundary;
 	fprintf(stderr, "client's boundary assigned by server\n");
 
 	print_boundaries(me.boundary);
 
 ////receiving neighbours boundary
-    neighbour_boundary = *(_recv_boundary_from_child(sockfd));
+    neighbour_boundary = *(_recv_boundary_from_neighbour(sockfd));
 
     parent=neighbour_boundary;
     fprintf(stderr, "client received neighbours boundary\n");
@@ -4833,7 +4834,7 @@ static void *connect_and_split_thread_routine(void *args) {
     mode = NORMAL_NODE;
     fprintf(stderr,"Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE\n");
 
-    connect_to_bootstrap2("11312");
+    inform_departure_to_bootstrap("11312");
 
 	pthread_create(&join_request_listening_thread, 0,join_request_listener_thread_routine,args);
 	print_ecosystem();
@@ -4861,7 +4862,7 @@ static float calculate_area(ZoneBoundary bounds)
 }
 
 
-static void find_neighbour(node_info *found_neighbour)
+static void find_smallest_neighbour(node_info *found_neighbour)
 {
 	int counter;
 	float area;
@@ -4883,8 +4884,6 @@ static void find_neighbour(node_info *found_neighbour)
 		}
 
 	strcpy(found_neighbour->node_removal, neighbour[final_counter].node_removal);
-
-
 }
 
 static void process_die_command(conn *c) {
@@ -4895,11 +4894,8 @@ static void process_die_command(conn *c) {
 
 	found_neighbour = (node_info*) malloc(sizeof(node_info));
 
-	out_string(c,
-			"Die command received, initiating to move all keys to a neighbour\n");
-	find_neighbour(found_neighbour);
-
-	//parent.from.=found_neighbour->boundary.from.x;
+	out_string(c,"Die command received, initiating to move all keys to a neighbour\n");
+	find_smallest_neighbour(found_neighbour);
 
 	fprintf(stderr,"\nneighbour.node_removal=%s\n",found_neighbour->node_removal);
 	sockfd = connect_to("localhost", found_neighbour->node_removal,"process_die_command");
@@ -4914,7 +4910,7 @@ static void process_die_command(conn *c) {
    //usleep(1000*1000*5);
 	_send_my_boundary_to(sockfd);
 
-    parent = *(_recv_boundary_from_child(sockfd));
+    parent = *(_recv_boundary_from_neighbour(sockfd));
 
     mode = MERGING_CHILD_MIGRATING;
     fprintf(stderr, "Mode changed: MERGING_CHILD_INIT -> MERGING_CHILD_MIGRATING\n");
@@ -4939,7 +4935,7 @@ static void process_die_command(conn *c) {
 
 
 
-	connect_to_bootstrap2("11313");
+	inform_departure_to_bootstrap("11313");
 
 	//
 	serialize_boundary(me.boundary,buf);
@@ -6514,7 +6510,7 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
 	sprintf(me.join_request,"%s",buf);
 
 	//receiving world boundaries
-    world_boundary = *(_recv_boundary_from_child(sockfd));
+    world_boundary = *(_recv_boundary_from_neighbour(sockfd));
 	me.boundary=world_boundary;
 
 
