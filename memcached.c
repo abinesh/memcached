@@ -4205,6 +4205,44 @@ static void deleting_key_from_neighbour(char *key){
     }
 }
 
+static int is_neighbour_info_not_valid(node_info n){
+    return !strcmp(n.node_removal,"NULL") && !strcmp(n.request_propogation,"NULL");
+}
+
+static void set_node_info(node_info *n,ZoneBoundary b,char *propagation_port_number,char *removal_port_number){
+    n->boundary.from.x=b.from.x;
+    n->boundary.from.y=b.from.y;
+    n->boundary.to.x=b.to.x;
+    n->boundary.to.y=b.to.y;
+    sprintf(n->request_propogation,"%s",propagation_port_number);
+    sprintf(n->node_removal,"%s",removal_port_number);
+}
+
+static void _update_neighbours_list(char *command, char *port, ZoneBoundary boundary){
+    int i=0;
+    if(strcmp(command,"ADD_NEIGHBOUR")==0){
+        for(i =0; i<10; i++){
+            if(is_neighbour_info_not_valid(neighbour[i])){
+                set_node_info(&neighbour[i],boundary,port,"NULL");
+                break;
+            }
+        }
+    }
+    else if (strcmp(command,"REMOVE_NEIGHBOUR")==0){
+        for(i =0; i<10; i++){
+            if(!is_neighbour_info_not_valid(neighbour[i]) && strcmp(neighbour[i].request_propogation,port)==0){
+                set_node_info(&neighbour[i],NULL_BOUNDARY,"NULL","NULL");
+                break;
+            }
+        }
+    }
+    else if(strcmp(command,"ADD_NEIGHBOUR")==0){
+
+    }
+    else fprintf(stderr,"Invalid neighbour list change command %s\n",command);
+
+}
+
 static void *node_propagation_thread_routine(void *args){
 	if(settings.verbose>1)
 	        fprintf(stderr,"in node_propagation_thread_routine\n");
@@ -4272,14 +4310,15 @@ static void *node_propagation_thread_routine(void *args){
 
             deleting_key_from_neighbour(buf);
         }
-        else if(!strcmp(buf,"ADD_NEIGHBOUR")){
-            fprintf(stderr,"ADD_NEIGHBOUR command received\n");
-            memset(buf,'\0',1024);
-            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-            fprintf(stderr,"Received %s\n",buf);
+        else if(!strcmp(buf,"ADD_NEIGHBOUR") || !strcmp(buf,"REMOVE_NEIGHBOUR") || !strcmp(buf,"UPDATE_NEIGHBOUR")){
+            char command[1024],port[1024],boundarystr[1024];
+            ZoneBoundary boundary;
+            memset(command,'\0',1024);
+            memset(port,'\0',1024);
+            memset(boundarystr,'\0',1024);
+
+            fprintf(stderr,"%s command received\n",buf);
+            sprintf(command,"%s",buf);
 
             memset(buf,'\0',1024);
             if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
@@ -4287,44 +4326,17 @@ static void *node_propagation_thread_routine(void *args){
                 exit(1);
             }
             fprintf(stderr,"Received %s\n",buf);
-
-            print_ecosystem();
-
-        }
-        else if(!strcmp(buf,"REMOVE_NEIGHBOUR")){
-            fprintf(stderr,"REMOVE_NEIGHBOUR command received\n");
-            memset(buf,'\0',1024);
-            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-            fprintf(stderr,"Received %s\n",buf);
+            sprintf(port,"%s",buf);
 
             memset(buf,'\0',1024);
             if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
                 perror("recv");
                 exit(1);
             }
-
             fprintf(stderr,"Received %s\n",buf);
-            print_ecosystem();
-        }
-        else if(!strcmp(buf,"UPDATE_NEIGHBOUR")){
-            fprintf(stderr,"REMOVE_NEIGHBOUR command received\n");
-            memset(buf,'\0',1024);
-            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-            fprintf(stderr,"Received %s\n",buf);
-
-            memset(buf,'\0',1024);
-            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-
-            fprintf(stderr,"Received %s\n",buf);
+            sprintf(boundarystr,"%s",buf);
+            deserialize_boundary(boundarystr,&boundary);
+            _update_neighbours_list(command,port,boundary);
             print_ecosystem();
         }
     }
@@ -4459,9 +4471,6 @@ static int is_neighbour(node_info a, node_info b){
     else return -1;
 }
 
-static int is_neighbour_info_not_valid(node_info n){
-    return !strcmp(n.node_removal,"NULL") && !strcmp(n.request_propogation,"NULL");
-}
 
 static void _send_add_remove_update_neighbour_command(char *command,int neighbour_fd,node_info n){
     char buf[1024];
@@ -4497,7 +4506,7 @@ static void _send_update_neighbour_command(int neighbour_fd,node_info n){
     _send_add_remove_update_neighbour_command("UPDATE_NEIGHBOUR",neighbour_fd,n);
 }
 
-static void update_neighbours_list(node_info new_node){
+static void update_list_on_neighbour(node_info new_node){
     int counter =0;
     for(counter = 0;counter < 10; counter++){
         if(!is_neighbour_info_not_valid(neighbour[counter])){
@@ -4505,7 +4514,7 @@ static void update_neighbours_list(node_info new_node){
                 // Make sure to use new_me instead of me
                 if(is_neighbour(new_node,me)!=1){
                     //remove me from neighbour
-                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
+                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
                     fprintf(stderr,"Removing me from neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
                     _send_remove_neighbour_command(neighbour_fd,me);
                     close(neighbour_fd);
@@ -4513,14 +4522,14 @@ static void update_neighbours_list(node_info new_node){
                 usleep(1000);
                 if(is_neighbour(new_node,neighbour[counter])){
                     //add new node to neighbour
-                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
+                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
                     fprintf(stderr,"Removing new node to neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
                     _send_add_neighbour_command(neighbour_fd,new_node);
                     close(neighbour_fd);
                 }
             }
             else {
-                int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_neighbours_list");
+                int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
                 fprintf(stderr,"Updating my boundary in neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
                 _send_update_neighbour_command(neighbour_fd,me);
                 close(neighbour_fd);
@@ -4560,13 +4569,13 @@ static int send_neighbours_to_child(int new_fd){
 static void receiving_from_parents_parents_neighbours(int new_sockfd){
 	char buf[1024],propagation_port_number[1024],removal_port_number[1024];
 	int counter;
-	ZoneBoundary *boundary = (ZoneBoundary *) malloc(sizeof(ZoneBoundary));
+	ZoneBoundary boundary;
 
 	recv(new_sockfd, buf,1024, 0);
 	fprintf(stderr,"receiving from parent1:%s",buf);
 	if(strcmp(buf,"NONE"))
 	{
-		deserialize_boundary(buf,boundary);
+		deserialize_boundary(buf,&boundary);
 
 		memset(buf,'\0',1024);
 		recv(new_sockfd, buf, 1024, 0);
@@ -4578,12 +4587,7 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 		{
 			if(is_neighbour_info_not_valid(neighbour[counter]))
 			{
-				neighbour[counter].boundary.from.x=boundary->from.x;
-				neighbour[counter].boundary.from.y=boundary->from.y;
-				neighbour[counter].boundary.to.x=boundary->to.x;
-				neighbour[counter].boundary.to.y=boundary->to.y;
-				sprintf(neighbour[counter].request_propogation,"%s",propagation_port_number);
-				sprintf(neighbour[counter].node_removal,"%s",removal_port_number);
+			    set_node_info(&neighbour[counter],boundary,propagation_port_number,removal_port_number);
 				break;
 			}
 		}
@@ -4684,7 +4688,7 @@ static void *join_request_listener_thread_routine(void * args) {
         new_node.boundary=client_boundary;
         sprintf(new_node.node_removal,"%s",neighbour_node_removal);
         sprintf(new_node.request_propogation,"%s",neighbour_request_propogation);
-        update_neighbours_list(new_node);
+        update_list_on_neighbour(new_node);
         send_neighbours_to_child(new_fd);
 
         for(counter=0;counter<10;counter++)

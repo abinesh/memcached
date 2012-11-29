@@ -602,7 +602,7 @@ typedef struct tagZoneBoundary {
 } ZoneBoundary;
 
 
-ZoneBoundary world_boundary,client_boundary, my_new_boundary,parent;
+ZoneBoundary world_boundary,client_boundary, my_new_boundary,parent,NULL_BOUNDARY;
 //pthread_t join_request_listener_thread;
 
 #define BACKLOG 10 // how many pending connections queue will hold
