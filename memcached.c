@@ -4424,6 +4424,48 @@ static void remove_from_neighbour_list(ZoneBoundary *a){
 
 }
 
+static void serialize_node_info(node_info n,char *buf){
+    memset(buf,'\0',1024);
+    sprintf(buf,"%s,%s,%s,(%f,%f) to (%f,%f)",
+            n.join_request,
+            n.request_propogation,
+            n.node_removal,
+            n.boundary.from.x,
+            n.boundary.from.y,
+            n.boundary.to.x,
+            n.boundary.to.y
+            );
+}
+
+static void deserialize_node_info(char *buf, node_info *n){
+    memset(buf,'\0',1024);
+    sscanf(buf,"%s,%s,%s,(%f,%f) to (%f,%f)",
+                           n->join_request,
+                           n->request_propogation,
+                           n->node_removal,
+                           &n->boundary.from.x,
+                           &n->boundary.from.y,
+                           &n->boundary.to.x,
+                           &n->boundary.to.y);
+}
+
+static void _process_dying_childs_neighbours(int neighbour_fd,ZoneBoundary merged_boundary){
+    int i=0;
+    int MAXDATASIZE = 1024;
+    char buf[MAXDATASIZE];
+    for(i=0;i<10;i++){
+        usleep(1000);
+        memset(buf,'\0',1024);
+        node_info n;
+        if (recv(neighbour_fd, buf, MAXDATASIZE-1, 0) == -1) {
+            perror("recv");
+            exit(1);
+        }
+        fprintf(stderr,"Received %s\n",buf);
+        deserialize_node_info(buf,&n);
+    }
+}
+
 static void *node_removal_listener_thread_routine(void *args) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "in node_removal_listener_thread_routine\n");
@@ -4467,7 +4509,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             send(new_fd,buf,strlen(buf),0);
             ///
 
-//            _process_dying_childs_neighbours(new_fd,merged_boundary);
+            _process_dying_childs_neighbours(new_fd,*merged_boundary);
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
@@ -4908,6 +4950,12 @@ static void process_die_command(conn *c) {
 	_send_my_boundary_to(sockfd);
 
     parent = *(_recv_boundary_from_neighbour(sockfd));
+
+    for(i=0;i<10;i++){
+        usleep(1000);
+        serialize_node_info(neighbour[i],buf);
+        send(sockfd,buf,strlen(buf),0);
+    }
 
     mode = MERGING_CHILD_MIGRATING;
     fprintf(stderr, "Mode changed: MERGING_CHILD_INIT -> MERGING_CHILD_MIGRATING\n");
