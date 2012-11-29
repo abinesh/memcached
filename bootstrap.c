@@ -33,11 +33,9 @@ static void serialize_boundary(ZoneBoundary b, char *s) {
 	sprintf(s, "[(%f,%f) to (%f,%f)]", b.from.x, b.from.y, b.to.x, b.to.y);
 }
 
-void sigchld_handler(int s)
-{
-	while(waitpid(-1, NULL, WNOHANG) > 0);
+static void sigchld_handler(int s) {
+	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
-
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -45,6 +43,60 @@ void *get_in_addr(struct sockaddr *sa)
 	    return &(((struct sockaddr_in*)sa)->sin_addr);
 	}
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+static int listen_on(char *port,char *caller){
+    int sockfd=-1;
+	struct sigaction sa;
+   	struct addrinfo hints, *servinfo, *p;
+   	int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = INADDR_ANY;
+
+	if ((rv = getaddrinfo("localhost", port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "In %s, getaddrinfo: %s\n", caller, gai_strerror(rv));
+        exit(-1);
+    }
+
+    // loop through all the results and bind to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            fprintf(stderr,"In %s,",caller);
+            perror("listener: socket");
+            continue;
+        }
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            fprintf(stderr,"In %s,",caller);
+            perror("listener: bind");
+            continue;
+        }
+        break;
+    }
+    if (p == NULL) {
+        fprintf(stderr, "In %s, listener: failed to bind socket\n",caller);
+        exit(-1);
+    }
+
+    if (listen(sockfd, BACKLOG) == -1) {
+    fprintf(stderr,"In %s,",caller);
+    perror("listen");
+    exit(1);
+    }
+
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL ) == -1) {
+    fprintf(stderr,"In %s,",caller);
+    perror("sigaction");
+    exit(1);
+    }
+    return sockfd;
 }
 
 static int find_port(){
@@ -182,63 +234,14 @@ static void print_list_of_nodes_in_cluster(){
 static void *node_addition_routine(void *arg){
     fprintf(stderr,"Node addition thread started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-    struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
-    struct sigaction sa;
-    int yes=1;
     char s[INET6_ADDRSTRLEN];
-    int rv;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
     int port,port_to_join;
     char portnum[255];
     char str[1024];
 
-    if ((rv = getaddrinfo("localhost", NODE_ADDITION_PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "node_addition_routine: getaddrinfo: %s\n", gai_strerror(rv));
-        return (void *)1;
-    }
-    // loop through all the results and bind to the first we can
-    
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("node_addition_routine: socket");
-            continue;
-        }
-    
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("node_addition_routine: bind");
-            continue;
-        }
-            break;
-    }
-    
-    if (p == NULL) {
-        fprintf(stderr, "node_addition_routine: failed to bind\n");
-        exit(-1);
-    }
-    
-    freeaddrinfo(servinfo); // all done with this structure
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
-    sa.sa_handler = sigchld_handler; // reap all dead processes
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(1);
-    }
-    
+    sockfd  = listen_on(NODE_ADDITION_PORT,"node_addition_routine");
     printf("node_addition_routine, port %s: waiting for connections...\n",NODE_ADDITION_PORT);
     
     while(1) { // main accept() loop
@@ -322,67 +325,17 @@ static void remove_node(char *port_number,ZoneBoundary *my_boundary){
 static void *metadata_update_routine(void *arg){
     fprintf(stderr,"metadata_update_routine started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-    struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
-    struct sigaction sa;
-    int yes=1;
     char s[INET6_ADDRSTRLEN];
-    int rv;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
     int numbytes;
     char buf[1024],port_number[255],parent_port_number[255];
     ZoneBoundary *my_boundary;
     my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
     ZoneBoundary *parent_boundary;
     parent_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
-    
-    if ((rv = getaddrinfo("localhost", METADATA_UPDATE_PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return (void *)1;
-    }
-    // loop through all the results and bind to the first we can
-    
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-            p->ai_protocol)) == -1) {
-            perror("metadata_update_routine: socket");
-            continue;
-        }
-    
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("metadata_update_routine: bind");
-            continue;
-        }
-        break;
-    }
 
-	if (p == NULL) {
-		fprintf(stderr, "metadata_update_routine: failed to bind\n");
-		return (void *)2;
-	}
-
-	freeaddrinfo(servinfo); // all done with this structure
-	if (listen(sockfd, BACKLOG) == -1) {
-	perror("listen");
-	exit(1);
-}
-	sa.sa_handler = sigchld_handler; // reap all dead processes
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
-
+    sockfd = listen_on(METADATA_UPDATE_PORT,"metadata_update_routine");
 	printf("metadata_update_routine, port %s: waiting for connections...\n", METADATA_UPDATE_PORT);
 
     while(1) { // main accept() loop
@@ -444,66 +397,17 @@ static void *metadata_update_routine(void *arg){
 static void *node_depature_routine(void *arg){
     fprintf(stderr,"node_depature_routine started\n");
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
-    struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
-    struct sigaction sa;
-    int yes=1;
     char s[INET6_ADDRSTRLEN];
-    int rv;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
     int numbytes;
     char buf[1024],port_number[255],parent_port_number[255];
     ZoneBoundary *my_boundary;
     my_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
     ZoneBoundary *parent_boundary;
     parent_boundary=(ZoneBoundary *)malloc(sizeof(ZoneBoundary));
-    
-    if ((rv = getaddrinfo("localhost", NODE_DEPARTURE_PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return (void *)1;
-    }
-    // loop through all the results and bind to the first we can
-    
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("node_depature_routine: socket");
-            continue;
-        }
-    
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("node_depature_routine: bind");
-            continue;
-        }
-        break;
-    }
-    
-    if (p == NULL) {
-        fprintf(stderr, "node_depature_routine: failed to bind\n");
-        return (void *)2;
-    }
-    
-    freeaddrinfo(servinfo); // all done with this structure
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
-    sa.sa_handler = sigchld_handler; // reap all dead processes
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(1);
-    }
-    
+    sockfd = listen_on(NODE_DEPARTURE_PORT,"node_depature_routine");
+
     printf("node_depature_routine, port %s: waiting for connections...\n",NODE_DEPARTURE_PORT);
     
     while(1) { // main accept() loop
@@ -514,8 +418,7 @@ static void *node_depature_routine(void *arg){
             continue;
         }
         inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr),
-        s, sizeof s);
+        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         
         printf("node_depature_routine: got connection from %s\n", s);
         

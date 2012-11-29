@@ -2851,6 +2851,64 @@ static void *get_in_addr(struct sockaddr *sa) {
 	return &(((struct sockaddr_in6*) sa)->sin6_addr);
 }
 
+static void sigchld_handler(int s) {
+	while (waitpid(-1, NULL, WNOHANG) > 0);
+}
+
+static int listen_on(char *port,char *caller){
+    int sockfd=-1; // listen on sock_fd, new connection on new_fd
+	struct sigaction sa;
+   	struct addrinfo hints, *servinfo, *p;
+   	int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = INADDR_ANY;
+
+	if ((rv = getaddrinfo("localhost", port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "In %s, getaddrinfo: %s\n", caller, gai_strerror(rv));
+        exit(-1);
+    }
+
+    // loop through all the results and bind to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            fprintf(stderr,"In %s,",caller);
+            perror("listener: socket");
+            continue;
+        }
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            fprintf(stderr,"In %s,",caller);
+            perror("listener: bind");
+            continue;
+        }
+        break;
+    }
+    if (p == NULL) {
+        fprintf(stderr, "In %s, listener: failed to bind socket\n",caller);
+        exit(-1);
+    }
+
+    if (listen(sockfd, BACKLOG) == -1) {
+    fprintf(stderr,"In %s,",caller);
+    perror("listen");
+    exit(1);
+    }
+
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL ) == -1) {
+    fprintf(stderr,"In %s,",caller);
+    perror("sigaction");
+    exit(1);
+    }
+
+    return sockfd;
+}
 
 static int connect_to(char *ip_address,char *port,char *caller){
     int sockfd;
@@ -2890,6 +2948,57 @@ static int connect_to(char *ip_address,char *port,char *caller){
     fprintf(stderr,"%s : client: connecting to %s:%s\n", caller,s,port);
     freeaddrinfo(servinfo);
     return sockfd;
+}
+
+static int find_port(int *sock_desc){
+
+	struct addrinfo hints, *servinfo, *p;
+		int rv,addrlen;
+		int socket_descriptor=0,portno;
+		memset(&hints, 0, sizeof hints);
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_flags = INADDR_ANY;
+		struct sockaddr_in serv_addr;
+	int input_portno = 0;
+	char portnoString[10];
+		sprintf(portnoString,"%i", input_portno);
+
+		if ((rv = getaddrinfo(NULL, portnoString, &hints, &servinfo)) != 0) {
+				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+				//return 1;
+		}
+
+		// loop through all the results and bind to the first we can
+		for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((socket_descriptor = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+					perror("listener: socket");
+					continue;
+			}
+			if (bind(socket_descriptor, p->ai_addr, p->ai_addrlen) == -1) {
+				close(socket_descriptor);
+				perror("listener: bind");
+				continue;
+			}
+			break;
+		}
+		if (p == NULL) {
+			fprintf(stderr, "listener: failed to bind socket\n");
+			//return 2;
+		}
+		addrlen = sizeof(serv_addr);
+		int getsock_check=getsockname(socket_descriptor,(struct sockaddr *)&serv_addr, (socklen_t *)&addrlen) ;
+
+		   	if (getsock_check== -1) {
+		   			perror("getsockname");
+		   			exit(1);
+		   	}
+		portno =  ntohs(serv_addr.sin_port);
+        fprintf(stderr, "The actual port number is %d\n", portno);
+		freeaddrinfo(servinfo);
+		*sock_desc=socket_descriptor;
+		return portno;
 }
 
 static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour) {
@@ -3942,9 +4051,6 @@ static void* split_migrate_keys_routine(void *tagArgs){
     _parent_split_migrate_phase(&args->child_fd);
     return 0;
 }
-static void sigchld_handler(int s) {
-	while (waitpid(-1, NULL, WNOHANG) > 0);
-}
 
 static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	char *ptr;
@@ -4078,56 +4184,6 @@ static void deleting_key_from_neighbour(char *key){
             mylist_add(&trash_both,key);
         }
     }
-}
-static int find_port(int *sock_desc){
-
-	struct addrinfo hints, *servinfo, *p;
-		int rv,addrlen;
-		int socket_descriptor=0,portno;
-		memset(&hints, 0, sizeof hints);
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_flags = INADDR_ANY;
-		struct sockaddr_in serv_addr;
-	int input_portno = 0;
-	char portnoString[10];
-		sprintf(portnoString,"%i", input_portno);
-
-		if ((rv = getaddrinfo(NULL, portnoString, &hints, &servinfo)) != 0) {
-				fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-				//return 1;
-		}
-
-		// loop through all the results and bind to the first we can
-		for(p = servinfo; p != NULL; p = p->ai_next) {
-			if ((socket_descriptor = socket(p->ai_family, p->ai_socktype,
-					p->ai_protocol)) == -1) {
-					perror("listener: socket");
-					continue;
-			}
-			if (bind(socket_descriptor, p->ai_addr, p->ai_addrlen) == -1) {
-				close(socket_descriptor);
-				perror("listener: bind");
-				continue;
-			}
-			break;
-		}
-		if (p == NULL) {
-			fprintf(stderr, "listener: failed to bind socket\n");
-			//return 2;
-		}
-		addrlen = sizeof(serv_addr);
-		int getsock_check=getsockname(socket_descriptor,(struct sockaddr *)&serv_addr, (socklen_t *)&addrlen) ;
-
-		   	if (getsock_check== -1) {
-		   			perror("getsockname");
-		   			exit(1);
-		   	}
-		portno =  ntohs(serv_addr.sin_port);
-        fprintf(stderr, "The actual port number is %d\n", portno);
-		freeaddrinfo(servinfo);
-		*sock_desc=socket_descriptor;
-		return portno;
 }
 
 static void *node_propagation_thread_routine(void *args){
@@ -4441,62 +4497,6 @@ static void receiving_from_parents_parents_neighbours(int new_sockfd){
 		}
 	}
 }
-
-static int listen_on(char *port,char *caller){
-    int sockfd=-1; // listen on sock_fd, new connection on new_fd
-	struct sigaction sa;
-   	struct addrinfo hints, *servinfo, *p;
-   	int rv;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = INADDR_ANY;
-
-	if ((rv = getaddrinfo("localhost", port, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "In %s, getaddrinfo: %s\n", caller, gai_strerror(rv));
-        exit(-1);
-    }
-    
-    // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            fprintf(stderr,"In %s,",caller);
-            perror("listener: socket");
-            continue;
-        }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            fprintf(stderr,"In %s,",caller);
-            perror("listener: bind");
-            continue;
-        }
-        break;
-    }
-    if (p == NULL) {
-        fprintf(stderr, "In %s, listener: failed to bind socket\n",caller);
-        exit(-1);
-    }
-    
-    if (listen(sockfd, BACKLOG) == -1) {
-    fprintf(stderr,"In %s,",caller);
-    perror("listen");
-    exit(1);
-    }
-    
-    sa.sa_handler = sigchld_handler; // reap all dead processes
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    
-    if (sigaction(SIGCHLD, &sa, NULL ) == -1) {
-    fprintf(stderr,"In %s,",caller);
-    perror("sigaction");
-    exit(1);
-    }
-
-return sockfd;
-}
-
 
 static void *join_request_listener_thread_routine(void * args) {
 	if (settings.verbose > 1)
