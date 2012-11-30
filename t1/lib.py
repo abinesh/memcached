@@ -33,7 +33,7 @@ def get_key(node, key, expected_value, expected_flag=0):
         "VALUE %s %d %d" % (key, expected_flag, len(expected_value)),
   #   "VALUE %s %d %d" % (key, expected_flag, len(expected_value) - 2),
   #      "VALUE %s %d %d" % (key, expected_flag, len(expected_value) + 2),
-  #      "VALUE %s %d%d" % (key, expected_flag, len(expected_value)),
+        "VALUE %s %d%d" % (key, expected_flag, len(expected_value)),
   #      "VALUE %s %d%d" % (key, expected_flag, len(expected_value) - 2),
   #      "VALUE %s %d%d" % (key, expected_flag, len(expected_value) + 2)"""
     ]

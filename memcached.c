@@ -3531,7 +3531,8 @@ static void process_update_command(conn *c, token_t *tokens,
         }
         else{
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,my_new_boundary.from.x,my_new_boundary.from.y,my_new_boundary.to.x,my_new_boundary.to.y);
-            fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
+            //fprintf(stderr,"SIMULATING PUT IGNORE; STORING key in trash_both");
+            out_string(c, "STORED");
             mylist_add(&trash_both,key);
         }
     }
@@ -3857,7 +3858,8 @@ static void process_delete_command(conn *c, token_t *tokens,
             mylist_add(&trash_both, key);
             pthread_mutex_unlock(&list_of_keys_lock);
 
-            out_string(c, "IGNORING DELETE; KEY STORED IN TRASH LIST");
+            //out_string(c, "IGNORING DELETE; KEY STORED IN TRASH LIST");
+            out_string(c, "DELETED");
         }
     }
 }
