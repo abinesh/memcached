@@ -322,6 +322,7 @@ static void *node_addition_routine(void *arg){
         close(new_fd); // parent doesn't need this
         print_list_of_nodes_in_cluster();
     }
+    return 0;
 }
 
 static void save_boundaries(char *port_number,ZoneBoundary b){

@@ -4168,6 +4168,7 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
         pthread_mutex_lock(&list_of_keys_lock);
         mylist_delete(&list_of_keys, key_to_transfer);
         pthread_mutex_unlock(&list_of_keys_lock);
+        delete_key_locally(key_to_transfer);
     }
     else {
         fprintf(stderr,"storing key %s locally\n",key_to_transfer);
