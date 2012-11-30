@@ -4026,8 +4026,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		fprintf(stderr,"length is %d\n",(int)strlen(key));
 		item *it = item_get(key, strlen(key));
 		ptr = strtok(ITEM_suffix(it), " ");
-		fprintf(stderr, "nbytes---%d", it->nbytes);
-		serialize_key_value_str(key, ptr, it->exptime, it->nbytes,
+		fprintf(stderr, "nbytes---%d", it->nbytes-2);
+		serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2,
 				ITEM_data(it), key_value_str);
 		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
 		delete_key_locally(key);
