@@ -4270,6 +4270,11 @@ static void _update_neighbours_list(char *command, char *propagation_port_number
     int i=0;
     if(strcmp(command,ADD_NEIGHBOUR_COMMAND)==0){
         for(i =0; i<10; i++){
+            if(!is_neighbour_info_not_valid(neighbour[i]) && strcmp(neighbour[i].request_propogation,propagation_port_number)==0){
+                // node present already, should have received an update command
+                set_node_info(&neighbour[i],boundary,propagation_port_number,removal_port_number);
+                break;
+            }
             if(is_neighbour_info_not_valid(neighbour[i])){
                 set_node_info(&neighbour[i],boundary,propagation_port_number,removal_port_number);
                 break;
