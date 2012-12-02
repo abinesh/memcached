@@ -3232,7 +3232,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     it = item_get(key, nkey);
                 }
                 else{
-                    fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
+                    fprintf(stderr,"Point (%f,%f) is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
 
                     node_info info = get_neighbour_information(key);
                     request_neighbour(key,buf,"get",&info);
