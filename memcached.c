@@ -2979,6 +2979,8 @@ static int connect_to(char *ip_address,char *port,char *caller){
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
+    fprintf(stderr,"%s: attempting to connect_to %s:%s",caller,ip_address,port);
+
     if ((rv = getaddrinfo(ip_address, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return -1;
@@ -4291,7 +4293,6 @@ static void _update_neighbours_list(char *command, char *propagation_port_number
         }
     }
     else fprintf(stderr,"Invalid neighbour list change command %s\n",command);
-
 }
 
 static void *node_propagation_thread_routine(void *args){
@@ -4520,11 +4521,68 @@ static void _send_update_neighbour_command(int neighbour_fd,node_info n){
     _send_add_remove_update_neighbour_command(UPDATE_NEIGHBOUR_COMMAND,neighbour_fd,n);
 }
 
+static void update_my_neighbours_with_my_info(node_info me,node_info *ignore_node,char *caller) {
+    int i=0;
+    for(i=0;i<10;i++){
+        if(!is_neighbour_info_not_valid(neighbour[i])){
+            if(ignore_node && is_same_node_info(neighbour[i],*ignore_node)) continue;
+            int neighbour_fd = connect_to("localhost",neighbour[i].request_propogation,caller);
+            _send_update_neighbour_command(neighbour_fd,me);
+            close(neighbour_fd);
+        }
+    }
+}
+
+static void copy_node_info(node_info in,node_info *out){
+    out->boundary = in.boundary;
+    strcpy(out->join_request,in.join_request);
+    strcpy(out->request_propogation,in.request_propogation);
+    strcpy(out->node_removal,in.node_removal);
+}
+
+static void reset_neighbour_entry(int index){
+    copy_node_info(NULL_NODE_INFO,&neighbour[index]);
+}
+
+static void inform_neighbours_about_new_child(node_info new_node,node_info new_me){
+    int counter = 0;
+    for(counter = 0;counter < 10; counter++){
+        if(!is_neighbour_info_not_valid(neighbour[counter])){
+            if(is_neighbour(new_node.boundary,neighbour[counter].boundary)==1){
+                // Make sure to use new_me instead of me
+                // if this neighbour is no longer my neighbour
+                int should_reset_this_entry = 0;
+                if(is_neighbour(new_node.boundary,new_me.boundary)!=1){
+                    //remove me from neighbour
+                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"inform_neighbours_about_new_child");
+                    fprintf(stderr,"Removing me from neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
+                    _send_remove_neighbour_command(neighbour_fd,new_me);
+                    close(neighbour_fd);
+                    should_reset_this_entry = 1;
+                }
+                usleep(1000);
+                //if this neighbour is neighbour of new_node
+                if(is_neighbour(new_node.boundary,neighbour[counter].boundary)){
+                    //add new node to neighbour
+                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"inform_neighbours_about_new_child");
+                    fprintf(stderr,"Removing new node to neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
+                    _send_add_neighbour_command(neighbour_fd,new_node);
+                    close(neighbour_fd);
+                }
+                if(should_reset_this_entry == 1){
+                    reset_neighbour_entry(counter);
+                }
+            }
+        }
+    }
+    update_my_neighbours_with_my_info(me,NULL,"inform_neighbours_about_new_child");
+}
+
 static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_me,node_info dying_child){
     int i=0;
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
-    // dying child's neighbours
+    // dying_child's neighbours
     for(i=0;i<10;i++){
         usleep(1000);
         memset(buf,'\0',1024);
@@ -4560,21 +4618,8 @@ static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_m
             }
         }
     }
-    // parent's neighbour
-    for(i=0;i<10;i++){
-        if(!is_neighbour_info_not_valid(neighbour[i])){
-            int neighbour_fd = connect_to("localhost",neighbour[i].request_propogation,"inform_neighbours_about_dying_child");
-            _send_update_neighbour_command(neighbour_fd,new_me);
-            close(neighbour_fd);
-        }
-    }
-}
-
-static void copy_node_info(node_info in,node_info *out){
-    out->boundary = in.boundary;
-    strcpy(out->join_request,in.join_request);
-    strcpy(out->request_propogation,in.request_propogation);
-    strcpy(out->node_removal,in.node_removal);
+    // parent's neighbours
+    update_my_neighbours_with_my_info(new_me,&dying_child,"inform_neighbours_about_dying_child");
 }
 
 static void *node_removal_listener_thread_routine(void *args) {
@@ -4649,37 +4694,6 @@ static void *node_removal_listener_thread_routine(void *args) {
 }
 
 
-static void update_list_on_neighbour(node_info new_node){
-    int counter =0;
-    for(counter = 0;counter < 10; counter++){
-        if(!is_neighbour_info_not_valid(neighbour[counter])){
-            if(is_neighbour(new_node.boundary,neighbour[counter].boundary)==1){
-                // Make sure to use new_me instead of me
-                if(is_neighbour(new_node.boundary,me.boundary)!=1){
-                    //remove me from neighbour
-                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
-                    fprintf(stderr,"Removing me from neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
-                    _send_remove_neighbour_command(neighbour_fd,me);
-                    close(neighbour_fd);
-                }
-                usleep(1000);
-                if(is_neighbour(new_node.boundary,neighbour[counter].boundary)){
-                    //add new node to neighbour
-                    int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
-                    fprintf(stderr,"Removing new node to neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
-                    _send_add_neighbour_command(neighbour_fd,new_node);
-                    close(neighbour_fd);
-                }
-            }
-            else {
-                int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
-                fprintf(stderr,"Updating my boundary in neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
-                _send_update_neighbour_command(neighbour_fd,me);
-                close(neighbour_fd);
-            }
-        }
-    }
-}
 
 static int send_neighbours_to_child(int new_fd){
 	char boundary_str[1024],port_number_str[1024];
@@ -4831,7 +4845,11 @@ static void *join_request_listener_thread_routine(void * args) {
         new_node.boundary=client_boundary;
         sprintf(new_node.node_removal,"%s",neighbour_node_removal);
         sprintf(new_node.request_propogation,"%s",neighbour_request_propogation);
-        update_list_on_neighbour(new_node);
+        node_info new_me;
+        copy_node_info(me,&new_me);
+        new_me.boundary = my_new_boundary;
+
+        inform_neighbours_about_new_child(new_node,new_me);
         send_neighbours_to_child(new_fd);
 
         add_to_my_neighbours_list(new_node);
@@ -6647,6 +6665,12 @@ static void connect_to_bootstrap(char *bootstrap_port_no){
     }
 }
 
+static void my_init(){
+    NULL_NODE_INFO.boundary = NULL_BOUNDARY;
+    strcpy(NULL_NODE_INFO.join_request,"NULL");
+    strcpy(NULL_NODE_INFO.request_propogation,"NULL");
+    strcpy(NULL_NODE_INFO.node_removal,"NULL");
+}
 
 int main(int argc, char **argv) {
 int c;
@@ -6689,6 +6713,8 @@ signal(SIGINT, sig_handler);
 
 /* init settings */
 settings_init();
+
+my_init();
 
 /* set stderr non-buffering (for running under, say, daemontools) */
 setbuf(stderr, NULL );

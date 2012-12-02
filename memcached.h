@@ -620,7 +620,7 @@ typedef struct tag_node_info{
     char node_removal[10];
 
 }node_info;
-node_info me, neighbour[10];
+node_info me, neighbour[10],NULL_NODE_INFO;
 
 pthread_mutex_t list_of_keys_lock ;
 pthread_t join_request_listening_thread;
