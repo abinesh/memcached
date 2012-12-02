@@ -4524,6 +4524,7 @@ static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_m
     int i=0;
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
+    // dying child's neighbours
     for(i=0;i<10;i++){
         usleep(1000);
         memset(buf,'\0',1024);
@@ -4559,7 +4560,14 @@ static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_m
             }
         }
     }
-    // inform parent's neighbour about its size change
+    // parent's neighbour
+    for(i=0;i<10;i++){
+        if(!is_neighbour_info_not_valid(neighbour[i])){
+            int neighbour_fd = connect_to("localhost",neighbour[i].request_propogation,"inform_neighbours_about_dying_child");
+            _send_update_neighbour_command(neighbour_fd,new_me);
+            close(neighbour_fd);
+        }
+    }
 }
 
 static void copy_node_info(node_info in,node_info *out){
