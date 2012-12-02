@@ -4426,8 +4426,7 @@ static void remove_from_neighbour_list(ZoneBoundary *a){
 
 static void serialize_node_info(node_info n,char *buf){
     memset(buf,'\0',1024);
-    sprintf(buf,"%s,%s,%s,(%f,%f) to (%f,%f)",
-            n.join_request,
+    sprintf(buf,"%s %s (%f,%f) to (%f,%f)",
             n.request_propogation,
             n.node_removal,
             n.boundary.from.x,
@@ -4435,12 +4434,11 @@ static void serialize_node_info(node_info n,char *buf){
             n.boundary.to.x,
             n.boundary.to.y
             );
+    fprintf(stderr,"Serialized111: %s\n",buf);
 }
 
 static void deserialize_node_info(char *buf, node_info *n){
-    memset(buf,'\0',1024);
-    sscanf(buf,"%s,%s,%s,(%f,%f) to (%f,%f)",
-                           n->join_request,
+    sscanf(buf,"%s %s (%f,%f) to (%f,%f)",
                            n->request_propogation,
                            n->node_removal,
                            &n->boundary.from.x,
@@ -4449,7 +4447,7 @@ static void deserialize_node_info(char *buf, node_info *n){
                            &n->boundary.to.y);
 }
 
-static void _process_dying_childs_neighbours(int neighbour_fd,ZoneBoundary merged_boundary){
+static void receive_and_process_dying_childs_neighbours(int neighbour_fd,ZoneBoundary merged_boundary){
     int i=0;
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
@@ -4461,8 +4459,18 @@ static void _process_dying_childs_neighbours(int neighbour_fd,ZoneBoundary merge
             perror("recv");
             exit(1);
         }
-        fprintf(stderr,"Received %s\n",buf);
         deserialize_node_info(buf,&n);
+        if(strncmp(n.node_removal,"NULL",4)!=0){
+            fprintf(stderr,"Received111 %s: ",buf);
+            fprintf(stderr,"%s,%s,(%f,%f) to (%f,%f)\n",
+                    n.request_propogation,
+                    n.node_removal,
+                    n.boundary.from.x,
+                    n.boundary.from.y,
+                    n.boundary.to.x,
+                    n.boundary.to.y
+                    );
+        }
     }
 }
 
@@ -4509,7 +4517,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             send(new_fd,buf,strlen(buf),0);
             ///
 
-            _process_dying_childs_neighbours(new_fd,*merged_boundary);
+            receive_and_process_dying_childs_neighbours(new_fd,*merged_boundary);
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
@@ -4951,6 +4959,7 @@ static void process_die_command(conn *c) {
 
     parent = *(_recv_boundary_from_neighbour(sockfd));
 
+    // Send neighbour list to parent.
     for(i=0;i<10;i++){
         usleep(1000);
         serialize_node_info(neighbour[i],buf);
