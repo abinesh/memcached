@@ -4714,7 +4714,6 @@ static int send_neighbours_to_child(int new_fd){
 	        usleep(1000);
 	        serialize_port_numbers(neighbour[counter].request_propogation,neighbour[counter].node_removal,port_number_str);
 	        send(new_fd,port_number_str,strlen(port_number_str),0);
-	        remove_from_neighbour_list(&neighbour[counter].boundary);
 	        return counter;
 
 		}
@@ -4853,8 +4852,8 @@ static void *join_request_listener_thread_routine(void * args) {
         copy_node_info(me,&new_me);
         new_me.boundary = my_new_boundary;
 
-        inform_neighbours_about_new_child(new_node,new_me);
         send_neighbours_to_child(new_fd);
+        inform_neighbours_about_new_child(new_node,new_me);
 
         add_to_my_neighbours_list(new_node);
 
