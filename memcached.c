@@ -4252,6 +4252,18 @@ static void set_node_info(node_info *n,ZoneBoundary b,char *propagation_port_num
     sprintf(n->node_removal,"%s",removal_port_number);
 }
 
+static void add_to_my_neighbours_list(node_info n) {
+    int counter =0;
+    for(counter=0;counter<10;counter++)
+    {
+        if(is_neighbour_info_not_valid(neighbour[counter]))
+        {
+            set_node_info(&neighbour[counter],n.boundary,n.request_propogation,n.node_removal);
+            break;
+        }
+    }
+}
+
 static void _update_neighbours_list(char *command, char *propagation_port_number,char *removal_port_number, ZoneBoundary boundary){
     int i=0;
     if(strcmp(command,ADD_NEIGHBOUR_COMMAND)==0){
@@ -4543,6 +4555,7 @@ static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_m
                     _send_remove_neighbour_command(neighbour_fd,dying_child);
                     close(neighbour_fd);
                 }
+                add_to_my_neighbours_list(n);
             }
         }
     }
@@ -4724,7 +4737,7 @@ static void *join_request_listener_thread_routine(void * args) {
 	int MAXDATASIZE=1024;
 	int sockfd=0,new_fd; // listen on sock_fd, new connection on new_fd
 	char buf[1024];
-    int counter,numbytes;
+    int numbytes;
 
 	pthread_key_t *item_lock_type_key = (pthread_key_t*)args;
 	if(item_lock_type_key) fprintf(stderr,"lock passed on properly\n");
@@ -4813,14 +4826,7 @@ static void *join_request_listener_thread_routine(void * args) {
         update_list_on_neighbour(new_node);
         send_neighbours_to_child(new_fd);
 
-        for(counter=0;counter<10;counter++)
-        {
-            if(is_neighbour_info_not_valid(neighbour[counter]))
-            {
-                neighbour[counter]=new_node;
-                break;
-            }
-        }
+        add_to_my_neighbours_list(new_node);
 
         usleep(2000);
         pthread_t split_migrate_keys_thread;
