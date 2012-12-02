@@ -40,7 +40,6 @@ static void deserialize_boundary(char *s, ZoneBoundary *b) {
 	sscanf(s, "[(%f,%f) to (%f,%f)]", &(b->from.x), &(b->from.y), &(b->to.x),
 			&(b->to.y));
 }
-/// Start of functions common to bootstrap
 static void sigchld_handler(int s) {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
@@ -451,8 +450,8 @@ int main(void){
 	printf("Bootstrap running\n");
 	world_boundary.from.x=0;
 	world_boundary.from.y=0;
-	world_boundary.to.x=5;
-	world_boundary.to.y=5;
+	world_boundary.to.x=50;
+	world_boundary.to.y=50;
 	
 	for(i =0 ;i < 10 ;i++)
     {
