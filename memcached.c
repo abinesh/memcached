@@ -4401,6 +4401,17 @@ static ZoneBoundary* _merge_boundaries(ZoneBoundary *a, ZoneBoundary *b) {
 	else return _merge_boundaries(b,a);
 }
 
+static node_info* get_neighbour_by_boundary(ZoneBoundary *a){
+	int counter;
+    for(counter=0;counter<10;counter++)
+    {
+        if(neighbour[counter].boundary.from.x==a->from.x && neighbour[counter].boundary.from.y==a->from.y &&
+                neighbour[counter].boundary.to.x==a->to.x && neighbour[counter].boundary.to.y==a->to.y)
+            return &neighbour[counter];
+    }
+    return NULL;
+}
+
 static void remove_from_neighbour_list(ZoneBoundary *a){
 	int counter;
     for(counter=0;counter<10;counter++)
@@ -4463,7 +4474,41 @@ static int is_neighbour(ZoneBoundary a, ZoneBoundary b){
     else return -1;
 }
 
-static void inform_neighbours_about_dying_child(int neighbour_fd,ZoneBoundary my_merged_boundary,ZoneBoundary dying_child_boundary){
+static void _send_add_remove_update_neighbour_command(char *command,int neighbour_fd,node_info n){
+    char buf[1024];
+    usleep(1000);
+    fprintf(stderr,"Sending %s\n",command);
+    if (send(neighbour_fd,command,strlen(command),0)==-1)
+        perror("send");
+
+    usleep(1000);
+    memset(buf,'\0',1024);
+    serialize_port_numbers(n.request_propogation, n.node_removal,buf);
+    fprintf(stderr,"Sending %s\n",buf);
+    if (send(neighbour_fd,buf,strlen(buf),0) == -1)
+        perror("send");
+
+    usleep(1000);
+    memset(buf,'\0',1024);
+    serialize_boundary(n.boundary,buf);
+    fprintf(stderr,"Sending %s\n",buf);
+    if (send(neighbour_fd,buf,strlen(buf),0) == -1)
+        perror("send");
+}
+
+static void _send_remove_neighbour_command(int neighbour_fd,node_info n){
+    _send_add_remove_update_neighbour_command(REMOVE_NEIGHBOUR_COMMAND,neighbour_fd,n);
+}
+
+static void _send_add_neighbour_command(int neighbour_fd,node_info n){
+    _send_add_remove_update_neighbour_command(ADD_NEIGHBOUR_COMMAND,neighbour_fd,n);
+}
+
+static void _send_update_neighbour_command(int neighbour_fd,node_info n){
+    _send_add_remove_update_neighbour_command(UPDATE_NEIGHBOUR_COMMAND,neighbour_fd,n);
+}
+
+static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_me,node_info dying_child){
     int i=0;
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
@@ -4486,16 +4531,29 @@ static void inform_neighbours_about_dying_child(int neighbour_fd,ZoneBoundary my
                         n.boundary.to.x,
                         n.boundary.to.y
                         );
-                if(is_neighbour(n.boundary,my_merged_boundary)){
+                if(is_neighbour(n.boundary,new_me.boundary)){
+                    int neighbour_fd = connect_to("localhost",n.request_propogation,"inform_neighbours_about_dying_child");
                     fprintf(stderr,"Add my new boundary on this neighbour\n");
+                    _send_add_neighbour_command(neighbour_fd,new_me);
+                    close(neighbour_fd);
                 }
-                if(is_neighbour(n.boundary,dying_child_boundary)){
+                if(is_neighbour(n.boundary,dying_child.boundary)){
+                    int neighbour_fd = connect_to("localhost",n.request_propogation,"inform_neighbours_about_dying_child");
                     fprintf(stderr,"Remove dying child boundary on this neighbour\n");
+                    _send_remove_neighbour_command(neighbour_fd,dying_child);
+                    close(neighbour_fd);
                 }
             }
         }
     }
     // inform parent's neighbour about its size change
+}
+
+static void copy_node_info(node_info in,node_info *out){
+    out->boundary = in.boundary;
+    strcpy(out->join_request,in.join_request);
+    strcpy(out->request_propogation,in.request_propogation);
+    strcpy(out->node_removal,in.node_removal);
 }
 
 static void *node_removal_listener_thread_routine(void *args) {
@@ -4533,6 +4591,14 @@ static void *node_removal_listener_thread_routine(void *args) {
 
     		ZoneBoundary *child_boundary = _recv_boundary_from_neighbour(new_fd);
             ZoneBoundary *merged_boundary = _merge_boundaries(&me.boundary,child_boundary);
+            node_info dying_child = *(get_neighbour_by_boundary(child_boundary));
+            node_info new_me;
+            copy_node_info(me,&new_me);
+            new_me.boundary = *merged_boundary;
+            fprintf(stderr,"my old boundary:");
+            print_boundaries(me.boundary);
+            fprintf(stderr,"my new boundary:");
+            print_boundaries(new_me.boundary);
 
             ////
             usleep(1000*10);
@@ -4541,7 +4607,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             send(new_fd,buf,strlen(buf),0);
             ///
 
-            inform_neighbours_about_dying_child(new_fd,*merged_boundary,*child_boundary);
+            inform_neighbours_about_dying_child(new_fd,new_me,dying_child);
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
@@ -4561,40 +4627,6 @@ static void *node_removal_listener_thread_routine(void *args) {
         }
 }
 
-
-static void _send_add_remove_update_neighbour_command(char *command,int neighbour_fd,node_info n){
-    char buf[1024];
-    usleep(1000);
-    fprintf(stderr,"Sending %s\n",command);
-    if (send(neighbour_fd,command,strlen(command),0)==-1)
-        perror("send");
-
-    usleep(1000);
-    memset(buf,'\0',1024);
-    serialize_port_numbers(n.request_propogation, n.node_removal,buf);
-    fprintf(stderr,"Sending %s\n",buf);
-    if (send(neighbour_fd,buf,strlen(buf),0) == -1)
-        perror("send");
-
-    usleep(1000);
-    memset(buf,'\0',1024);
-    serialize_boundary(n.boundary,buf);
-    fprintf(stderr,"Sending %s\n",buf);
-    if (send(neighbour_fd,buf,strlen(buf),0) == -1)
-        perror("send");
-}
-
-static void _send_remove_neighbour_command(int neighbour_fd,node_info n){
-    _send_add_remove_update_neighbour_command(REMOVE_NEIGHBOUR_COMMAND,neighbour_fd,n);
-}
-
-static void _send_add_neighbour_command(int neighbour_fd,node_info n){
-    _send_add_remove_update_neighbour_command(ADD_NEIGHBOUR_COMMAND,neighbour_fd,n);
-}
-
-static void _send_update_neighbour_command(int neighbour_fd,node_info n){
-    _send_add_remove_update_neighbour_command(UPDATE_NEIGHBOUR_COMMAND,neighbour_fd,n);
-}
 
 static void update_list_on_neighbour(node_info new_node){
     int counter =0;
