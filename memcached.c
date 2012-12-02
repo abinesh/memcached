@@ -4554,10 +4554,9 @@ static void inform_neighbours_about_new_child(node_info new_node,node_info new_m
     for(counter = 0;counter < 10; counter++){
         if(!is_neighbour_info_not_valid(neighbour[counter])){
             if(is_neighbour(new_node.boundary,neighbour[counter].boundary)==1){
-                // Make sure to use new_me instead of me
                 // if this neighbour is no longer my neighbour
                 int should_reset_this_entry = 0;
-                if(is_neighbour(new_node.boundary,new_me.boundary)!=1){
+                if(is_neighbour(new_me.boundary,neighbour[counter].boundary)!=1){
                     //remove me from neighbour
                     int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"inform_neighbours_about_new_child");
                     fprintf(stderr,"Removing me from neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
