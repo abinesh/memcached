@@ -2979,7 +2979,7 @@ static int connect_to(char *ip_address,char *port,char *caller){
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    fprintf(stderr,"%s: attempting to connect_to %s:%s",caller,ip_address,port);
+    fprintf(stderr,"In %s: attempting to connect_to %s:%s\n",caller,ip_address,port);
 
     if ((rv = getaddrinfo(ip_address, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -3001,12 +3001,12 @@ static int connect_to(char *ip_address,char *port,char *caller){
     }
 
     if (p == NULL ) {
-        fprintf(stderr, "%s : client: failed to connect\n",caller);
+        fprintf(stderr, "In %s : client: failed to connect\n",caller);
         exit(-1);
     }
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *) p->ai_addr), s, sizeof s);
-    fprintf(stderr,"%s : client: connecting to %s:%s\n", caller,s,port);
+    fprintf(stderr,"In %s : client: connected successfully to %s:%s(Ignore previous errors for this)\n", caller,s,port);
     freeaddrinfo(servinfo);
     return sockfd;
 }
@@ -6675,6 +6675,10 @@ static void my_init(){
     strcpy(NULL_NODE_INFO.join_request,"NULL");
     strcpy(NULL_NODE_INFO.request_propogation,"NULL");
     strcpy(NULL_NODE_INFO.node_removal,"NULL");
+    int i=0;
+    for(i = 0;i<10;i++){
+        copy_node_info(NULL_NODE_INFO,&neighbour[i]);
+    }
 }
 
 int main(int argc, char **argv) {
