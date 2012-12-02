@@ -4451,7 +4451,19 @@ static int is_same_node_info(node_info n1,node_info n2){
     return 0;
 }
 
-static void receive_and_process_dying_childs_neighbours(int neighbour_fd,ZoneBoundary merged_boundary){
+static int is_neighbour(ZoneBoundary a, ZoneBoundary b){
+    if(a.from.x == b.to.x){
+        // A is to the right of B in vertical partitioning
+        return 1;
+    }
+    else if(a.to.x == b.from.x){
+        // A is to the left of B in vertical partitioning
+        return 1;
+    }
+    else return -1;
+}
+
+static void inform_neighbours_about_dying_child(int neighbour_fd,ZoneBoundary my_merged_boundary,ZoneBoundary dying_child_boundary){
     int i=0;
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
@@ -4466,18 +4478,24 @@ static void receive_and_process_dying_childs_neighbours(int neighbour_fd,ZoneBou
         deserialize_node_info(buf,&n);
         if(strncmp(n.node_removal,"NULL",4)!=0){
             if(!is_same_node_info(n,me)){
-            fprintf(stderr,"Received111 %s: ",buf);
-            fprintf(stderr,"%s,%s,(%f,%f) to (%f,%f)\n",
-                    n.request_propogation,
-                    n.node_removal,
-                    n.boundary.from.x,
-                    n.boundary.from.y,
-                    n.boundary.to.x,
-                    n.boundary.to.y
-                    );
+                fprintf(stderr,"Should process: %s,%s,(%f,%f) to (%f,%f)\n",
+                        n.request_propogation,
+                        n.node_removal,
+                        n.boundary.from.x,
+                        n.boundary.from.y,
+                        n.boundary.to.x,
+                        n.boundary.to.y
+                        );
+                if(is_neighbour(n.boundary,my_merged_boundary)){
+                    fprintf(stderr,"Add my new boundary on this neighbour\n");
+                }
+                if(is_neighbour(n.boundary,dying_child_boundary)){
+                    fprintf(stderr,"Remove dying child boundary on this neighbour\n");
+                }
             }
         }
     }
+    // inform parent's neighbour about its size change
 }
 
 static void *node_removal_listener_thread_routine(void *args) {
@@ -4523,7 +4541,7 @@ static void *node_removal_listener_thread_routine(void *args) {
             send(new_fd,buf,strlen(buf),0);
             ///
 
-            receive_and_process_dying_childs_neighbours(new_fd,*merged_boundary);
+            inform_neighbours_about_dying_child(new_fd,*merged_boundary,*child_boundary);
             mode = MERGING_PARENT_MIGRATING;
             fprintf(stderr,"Mode changed: MERGING_PARENT_INIT -> MERGING_PARENT_MIGRATING\n");
 
@@ -4541,19 +4559,6 @@ static void *node_removal_listener_thread_routine(void *args) {
             fprintf(stderr,"Mode changed: MERGING_PARENT_MIGRATING -> NORMAL_NODE\n");
 
         }
-}
-
-
-static int is_neighbour(node_info a, node_info b){
-    if(a.boundary.from.x == b.boundary.to.x){
-        // A is to the right of B in vertical partitioning
-        return 1;
-    }
-    else if(a.boundary.to.x == b.boundary.from.x){
-        // A is to the left of B in vertical partitioning
-        return 1;
-    }
-    else return -1;
 }
 
 
@@ -4595,9 +4600,9 @@ static void update_list_on_neighbour(node_info new_node){
     int counter =0;
     for(counter = 0;counter < 10; counter++){
         if(!is_neighbour_info_not_valid(neighbour[counter])){
-            if(is_neighbour(new_node,neighbour[counter])==1){
+            if(is_neighbour(new_node.boundary,neighbour[counter].boundary)==1){
                 // Make sure to use new_me instead of me
-                if(is_neighbour(new_node,me)!=1){
+                if(is_neighbour(new_node.boundary,me.boundary)!=1){
                     //remove me from neighbour
                     int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
                     fprintf(stderr,"Removing me from neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
@@ -4605,7 +4610,7 @@ static void update_list_on_neighbour(node_info new_node){
                     close(neighbour_fd);
                 }
                 usleep(1000);
-                if(is_neighbour(new_node,neighbour[counter])){
+                if(is_neighbour(new_node.boundary,neighbour[counter].boundary)){
                     //add new node to neighbour
                     int neighbour_fd = connect_to("localhost",neighbour[counter].request_propogation,"update_list_on_neighbour");
                     fprintf(stderr,"Removing new node to neighbour's list via neighbour's port no %s\n",neighbour[counter].request_propogation);
