@@ -4266,6 +4266,17 @@ static void add_to_my_neighbours_list(node_info n) {
     }
 }
 
+static void copy_node_info(node_info in,node_info *out){
+    out->boundary = in.boundary;
+    strcpy(out->join_request,in.join_request);
+    strcpy(out->request_propogation,in.request_propogation);
+    strcpy(out->node_removal,in.node_removal);
+}
+
+static void reset_neighbour_entry(int index){
+    copy_node_info(NULL_NODE_INFO,&neighbour[index]);
+}
+
 static void _update_neighbours_list(char *command, char *propagation_port_number,char *removal_port_number, ZoneBoundary boundary){
     int i=0;
     if(strcmp(command,ADD_NEIGHBOUR_COMMAND)==0){
@@ -4284,7 +4295,7 @@ static void _update_neighbours_list(char *command, char *propagation_port_number
     else if (strcmp(command,REMOVE_NEIGHBOUR_COMMAND)==0){
         for(i =0; i<10; i++){
             if(!is_neighbour_info_not_valid(neighbour[i]) && strcmp(neighbour[i].request_propogation,propagation_port_number)==0){
-                set_node_info(&neighbour[i],NULL_BOUNDARY,"NULL","NULL");
+                reset_neighbour_entry(i);
                 break;
             }
         }
@@ -4536,17 +4547,6 @@ static void update_my_neighbours_with_my_info(node_info me,node_info *ignore_nod
             close(neighbour_fd);
         }
     }
-}
-
-static void copy_node_info(node_info in,node_info *out){
-    out->boundary = in.boundary;
-    strcpy(out->join_request,in.join_request);
-    strcpy(out->request_propogation,in.request_propogation);
-    strcpy(out->node_removal,in.node_removal);
-}
-
-static void reset_neighbour_entry(int index){
-    copy_node_info(NULL_NODE_INFO,&neighbour[index]);
 }
 
 static void inform_neighbours_about_new_child(node_info new_node,node_info new_me){
