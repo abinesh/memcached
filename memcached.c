@@ -4421,7 +4421,6 @@ static void remove_from_neighbour_list(ZoneBoundary *a){
         else
             continue;
     }
-
 }
 
 static void serialize_node_info(node_info n,char *buf){
@@ -4447,6 +4446,11 @@ static void deserialize_node_info(char *buf, node_info *n){
                            &n->boundary.to.y);
 }
 
+static int is_same_node_info(node_info n1,node_info n2){
+    if(strcmp(n1.node_removal,n2.node_removal) == 0 ) return 1;
+    return 0;
+}
+
 static void receive_and_process_dying_childs_neighbours(int neighbour_fd,ZoneBoundary merged_boundary){
     int i=0;
     int MAXDATASIZE = 1024;
@@ -4461,6 +4465,7 @@ static void receive_and_process_dying_childs_neighbours(int neighbour_fd,ZoneBou
         }
         deserialize_node_info(buf,&n);
         if(strncmp(n.node_removal,"NULL",4)!=0){
+            if(!is_same_node_info(n,me)){
             fprintf(stderr,"Received111 %s: ",buf);
             fprintf(stderr,"%s,%s,(%f,%f) to (%f,%f)\n",
                     n.request_propogation,
@@ -4470,6 +4475,7 @@ static void receive_and_process_dying_childs_neighbours(int neighbour_fd,ZoneBou
                     n.boundary.to.x,
                     n.boundary.to.y
                     );
+            }
         }
     }
 }
