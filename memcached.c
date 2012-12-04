@@ -4483,6 +4483,9 @@ static void serialize_node_info(node_info n,char *buf){
 }
 
 static void deserialize_node_info(char *buf, node_info *n){
+    memset(n->join_request,'\0',10);
+    memset(n->request_propogation,'\0',10);
+    memset(n->node_removal,'\0',10);
     sscanf(buf,"%s %s (%f,%f) to (%f,%f)",
                            n->request_propogation,
                            n->node_removal,
@@ -4490,6 +4493,9 @@ static void deserialize_node_info(char *buf, node_info *n){
                            &n->boundary.from.y,
                            &n->boundary.to.x,
                            &n->boundary.to.y);
+    char buffer[1024];
+    serialize_node_info(*n,buffer);
+    fprintf(stderr,"Deserialized111: %s\n",buffer);
 }
 
 static int is_same_node_info(node_info n1,node_info n2){
@@ -4588,7 +4594,7 @@ static void inform_neighbours_about_new_child(node_info new_node,node_info new_m
     update_my_neighbours_with_my_info(me,NULL,"inform_neighbours_about_new_child");
 }
 
-static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_me,node_info dying_child){
+static void inform_neighbours_about_dying_child(int dying_child_fd,node_info new_me,node_info dying_child){
     int i=0;
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
@@ -4597,7 +4603,7 @@ static void inform_neighbours_about_dying_child(int neighbour_fd,node_info new_m
         usleep(1000);
         memset(buf,'\0',1024);
         node_info n;
-        if (recv(neighbour_fd, buf, MAXDATASIZE-1, 0) == -1) {
+        if (recv(dying_child_fd, buf, MAXDATASIZE-1, 0) == -1) {
             perror("recv");
             exit(1);
         }
