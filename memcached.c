@@ -4599,7 +4599,15 @@ static void inform_neighbours_about_dying_child(int dying_child_fd,node_info new
     int MAXDATASIZE = 1024;
     char buf[MAXDATASIZE];
     // dying_child's neighbours
-    for(i=0;i<10;i++){
+    memset(buf,'\0',1024);
+    if (recv(dying_child_fd, buf, MAXDATASIZE-1, 0) == -1) {
+        perror("recv");
+        exit(1);
+    }
+
+    int count_of_valid_entries = atoi(buf);
+    fprintf(stderr,"Number of valid node_info in child: %d\n",count_of_valid_entries);
+    for(i=0;i<count_of_valid_entries;i++){
         usleep(1000);
         memset(buf,'\0',1024);
         node_info n;
@@ -5023,6 +5031,17 @@ static void find_smallest_neighbour(node_info *found_neighbour)
 	strcpy(found_neighbour->node_removal, neighbour[final_counter].node_removal);
 }
 
+static int count_of_valid_node_info(){
+    int i=0;
+    int count =0;
+    for(i=0;i<10;i++){
+        if(!is_neighbour_info_not_valid(neighbour[i])){
+            count++;
+        }
+    }
+    return count;
+}
+
 static void process_die_command(conn *c) {
 	int sockfd=-1, i;
 	my_list keys_to_send;
@@ -5050,7 +5069,13 @@ static void process_die_command(conn *c) {
     parent = *(_recv_boundary_from_neighbour(sockfd));
 
     // Send neighbour list to parent.
-    for(i=0;i<10;i++){
+    int count_of_valid_entries = count_of_valid_node_info();
+    memset(buf,'\0',1024);
+    sprintf(buf,"%d",count_of_valid_entries);
+    send(sockfd,buf,strlen(buf),0);
+    fprintf(stderr,"Number of valid node_info: %d\n",count_of_valid_entries);
+
+    for(i=0;i<count_of_valid_entries;i++){
         usleep(1000);
         serialize_node_info(neighbour[i],buf);
         send(sockfd,buf,strlen(buf),0);
