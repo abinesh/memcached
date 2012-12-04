@@ -609,6 +609,7 @@ ZoneBoundary world_boundary,client_boundary, my_new_boundary,parent,NULL_BOUNDAR
 
 
 typedef struct tagList{
+    char name[32];
     int size;
     char **array;
 }my_list;

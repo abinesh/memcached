@@ -2772,7 +2772,7 @@ static int is_within_boundary(Point p, ZoneBoundary boundary) {
 /*Begin list functions*/
 static void mylist_print(my_list *list) {
 	int i = 0;
-	fprintf(stderr, "(%d,[", list->size);
+	fprintf(stderr, "%s:(%d,[", list->name, list->size);
 
 	for (i = 0; i < list->size; i++) {
 		fprintf(stderr, "%s,", list->array[i]);
@@ -2780,8 +2780,9 @@ static void mylist_print(my_list *list) {
 	fprintf(stderr, "])\n");
 }
 
-static void mylist_init(my_list *list) {
+static void mylist_init(char *name,my_list *list) {
 	list->size = 0;
+	strcpy(list->name,name);
 }
 
 static void mylist_add(my_list *list, char* v) {
@@ -4024,17 +4025,19 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		perror("send");
 
 	for (i = 0; i < keys_to_send.size; i++) {
-        usleep(10000000);
 		char *key = keys_to_send.array[i];
-		fprintf(stderr,"key to migrate is %s\n",key);
-		fprintf(stderr,"length is %d\n",(int)strlen(key));
-		item *it = item_get(key, strlen(key));
-		ptr = strtok(ITEM_suffix(it), " ");
-		fprintf(stderr, "nbytes---%d", it->nbytes-2);
-		serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2,
-				ITEM_data(it), key_value_str);
-		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
-		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
+		if(mylist_contains(&trash_both,key) != 1){
+            usleep(1000000);
+            fprintf(stderr,"key to migrate is %s\n",key);
+            fprintf(stderr,"length is %d\n",(int)strlen(key));
+            item *it = item_get(key, strlen(key));
+            ptr = strtok(ITEM_suffix(it), " ");
+            fprintf(stderr, "nbytes---%d", it->nbytes-2);
+            serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2,
+                    ITEM_data(it), key_value_str);
+            fprintf(stderr, "sending key_value_str %s\n", key_value_str);
+            send(another_node_fd, key_value_str, strlen(key_value_str), 0);
+		}
 		delete_key_locally(key);
 	}
 }
@@ -4067,7 +4070,7 @@ static void* _parent_split_migrate_phase(void *arg){
     fprintf(stderr,"Mode changed: SPLITTING_PARENT_INIT -> SPLITTING_PARENT_MIGRATING\n");
 
     pthread_mutex_lock(&list_of_keys_lock);
-    mylist_init(&keys_to_send);
+    mylist_init("keys_to_send", &keys_to_send);
     for (i = 0; i < list_of_keys.size; i++) {
         char *key = list_of_keys.array[i];
         Point resolved_point = key_point(key);
@@ -4165,15 +4168,17 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
 
     Point resolved_point = key_point(key_to_transfer);
     if (is_within_boundary(resolved_point, me.boundary) != 1) {
-        fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
-
-        sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
-        node_info info = get_neighbour_information(key_to_transfer);
-        request_neighbour(to_transfer, buf, "set",&info);
+        if(mylist_contains(&trash_both,key_to_transfer)!=1) {
+            fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
+            sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
+            node_info info = get_neighbour_information(key_to_transfer);
+            request_neighbour(to_transfer, buf, "set",&info);
+        }
         pthread_mutex_lock(&list_of_keys_lock);
         mylist_delete(&list_of_keys, key_to_transfer);
         pthread_mutex_unlock(&list_of_keys_lock);
         delete_key_locally(key_to_transfer);
+        fprintf(stderr,"in _propagate_update_command_if_required, deleted key %s fron this node.\n",key_to_transfer);
     }
     else {
         fprintf(stderr,"storing key %s locally\n",key_to_transfer);
@@ -4820,7 +4825,7 @@ static void *join_request_listener_thread_routine(void * args) {
         serialize_boundary(client_boundary, client_boundary_str);
         serialize_boundary(my_new_boundary, my_new_boundary_str);
 
-        mylist_init(&trash_both);
+        mylist_init("trash_both",&trash_both);
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
 
@@ -5049,7 +5054,7 @@ static void process_die_command(conn *c) {
     fprintf(stderr, "Mode changed: MERGING_CHILD_INIT -> MERGING_CHILD_MIGRATING\n");
 
 	pthread_mutex_lock(&list_of_keys_lock);
-	mylist_init(&keys_to_send);
+	mylist_init("keys_to_send",&keys_to_send);
 	for (i = 0; i < list_of_keys.size; i++) {
 		char *key = list_of_keys.array[i];
 		mylist_add(&keys_to_send, key);
@@ -7172,8 +7177,8 @@ if (sigignore(SIGPIPE) == -1) {
 pthread_mutex_init(&list_of_keys_lock, NULL );
 
 pthread_mutex_lock(&list_of_keys_lock);
-mylist_init(&list_of_keys);
-mylist_init(&trash_both);
+mylist_init("all_keys",&list_of_keys);
+mylist_init("trash_both",&trash_both);
 pthread_mutex_unlock(&list_of_keys_lock);
 
 /* start up worker threads if MT mode */
