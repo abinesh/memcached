@@ -4034,8 +4034,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2,
 				ITEM_data(it), key_value_str);
 		fprintf(stderr, "sending key_value_str %s\n", key_value_str);
-		delete_key_locally(key);
 		send(another_node_fd, key_value_str, strlen(key_value_str), 0);
+		delete_key_locally(key);
 	}
 }
 
