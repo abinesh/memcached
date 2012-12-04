@@ -4055,6 +4055,7 @@ static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
 		delete_key_locally(key);
 		delete_key_on_child(child_node_fd, key);
 	}
+	mylist_delete_all(&trash_both);
 }
 
 static void* _parent_split_migrate_phase(void *arg){
