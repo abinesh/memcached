@@ -2761,7 +2761,7 @@ static Point key_point(char *key) {
 
 static int is_within_boundary(Point p, ZoneBoundary boundary) {
 
-	if (p.x <= boundary.to.x && p.y <= boundary.to.y) {
+	if (p.x < boundary.to.x && p.y < boundary.to.y) {
 		if (p.x >= boundary.from.x && p.y >= boundary.from.y)
 			return 1;
 	}
@@ -4027,7 +4027,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	for (i = 0; i < keys_to_send.size; i++) {
 		char *key = keys_to_send.array[i];
 		if(mylist_contains(&trash_both,key) != 1){
-            usleep(1000000);
+            usleep(10000);
             fprintf(stderr,"key to migrate is %s\n",key);
             fprintf(stderr,"length is %d\n",(int)strlen(key));
             item *it = item_get(key, strlen(key));

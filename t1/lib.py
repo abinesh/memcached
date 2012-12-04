@@ -18,6 +18,7 @@ def delete_key(node, key):
 def _do_get(key, node):
     node.write("get " + key + "\r\n")
     str = node.read_until("END\r\n")
+    print "read str %s" % str
     output_lines = re.split("\r\n", str)
     if output_lines[0] == "END":
         return None, None
