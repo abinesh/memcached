@@ -4024,7 +4024,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		perror("send");
 
 	for (i = 0; i < keys_to_send.size; i++) {
-        usleep(1000);
+        usleep(10000000);
 		char *key = keys_to_send.array[i];
 		fprintf(stderr,"key to migrate is %s\n",key);
 		fprintf(stderr,"length is %d\n",(int)strlen(key));
