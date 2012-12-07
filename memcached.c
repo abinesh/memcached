@@ -3067,7 +3067,10 @@ char global_data_entry[1024];
 static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour,item* it) {
 	int sockfd;
 	int MAXDATASIZE = 1024;
-    sockfd = connect_to("localhost",neighbour->request_propogation,"request_neighbour");
+	char str[1024];
+	memset(str,'\0',1024);
+	sprintf(str,"request_neighbour(type=%s,to_transfer=%s)",type,key);
+    sockfd = connect_to("localhost",neighbour->request_propogation,str);
 
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending type %s\n", type);
@@ -3077,11 +3080,19 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending key/command %s\n", key);
 	send(sockfd, key, strlen(key), 0);
+	fprintf(stderr,"Sent command to neighbour %s\n",key);
 
 	if(strcmp(type,"set")==0){
         usleep(1000);
-        char *v = ITEM_data(it);
-        send(sockfd,v,it->nbytes,0);
+        if(it){
+            char *v = ITEM_data(it);
+            send(sockfd,v,it->nbytes,0);
+            fprintf(stderr,"Sent binary value to neighbour successfully\n");
+        }
+        else{
+            fprintf(stderr,"You should not have reached here!!!!!");
+            exit(-1);
+        }
 	}
 
     usleep(1000);
@@ -4189,7 +4200,7 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 static void _propagate_update_command_if_required(char *key_to_transfer){
     char to_transfer[1024];
     char buf[1024];
-    item *it =  it = item_get(key_to_transfer, strlen(key_to_transfer));
+    item *it = item_get(key_to_transfer, strlen(key_to_transfer));
 
     Point resolved_point = key_point(key_to_transfer);
     if (is_within_boundary(resolved_point, me.boundary) != 1) {
@@ -4197,6 +4208,7 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
             fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
             // the +4 in the next line removes "set " from command_to_transfer
             sprintf(to_transfer, "%s", (command_to_transfer+4));
+            fprintf(stderr,"going_to_transfer:%s\n",to_transfer);
             node_info info = get_neighbour_information(key_to_transfer);
             request_neighbour(to_transfer, buf, "set",&info,it);
         }
