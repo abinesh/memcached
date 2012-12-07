@@ -4184,12 +4184,23 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
     }
 }
 
-static void updating_key_from_neighbour(char *key, int flags, int time, int length, char* value){
+static void updating_key_from_neighbour(int new_fd){
+	char key[1024], value[1024], cmd[1024];
+	int flags, time, length,numbytes,MAXDATASIZE=1024;
+    char buf[1024];
+    memset(buf, '\0', 1024);
+    if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+    sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flags,&time,&length,value);
+
+    fprintf(stderr,"storing key %s received from neighbour",key);
+    store_key_value(key,flags,time,length,value);
+    sprintf(command_to_transfer, "set %s %d %d %d", key,flags,time,length);
+
 	if(mode == NORMAL_NODE){
-	    fprintf(stderr,"storing key %s received from neighbour",key);
-        store_key_value(key,flags,time,length,value);
-        sprintf(command_to_transfer, "set %s %d %d %d", key,flags,time,length);
-        _propagate_update_command_if_required(key);
+	    _propagate_update_command_if_required(key);
     }
     else
     if( mode == SPLITTING_PARENT_INIT ||
@@ -4325,8 +4336,6 @@ static void *node_propagation_thread_routine(void *args){
 	int MAXDATASIZE = 1024;
 	char buf[MAXDATASIZE];
 	int numbytes;
-	char key[1024], value[1024], cmd[1024];
-	int flag, time, length;
 
 	int port = find_port(&sockfd);
 	sprintf(me.request_propogation,"%d",port);
@@ -4365,13 +4374,7 @@ static void *node_propagation_thread_routine(void *args){
 			getting_key_from_neighbour(buf, new_fd);
 		}
 		else if (!strcmp(buf, "set")) {
-			memset(buf, '\0', 1024);
-			if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
-				perror("recv");
-				exit(1);
-			}
-                sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flag,&time,&length,value);
-                updating_key_from_neighbour(key,flag,time,length,value);
+			    updating_key_from_neighbour(new_fd);
             if ((numbytes = send(new_fd, "STORED", strlen("STORED"), 0)) == -1) {
                 perror("recv");
                 exit(1);
