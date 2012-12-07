@@ -3063,7 +3063,8 @@ static int find_port(int *sock_desc){
 		return portno;
 }
 
-static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour) {
+char global_data_entry[1024];
+static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour,item* it) {
 	int sockfd;
 	int MAXDATASIZE = 1024;
     sockfd = connect_to("localhost",neighbour->request_propogation,"request_neighbour");
@@ -3077,23 +3078,39 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	fprintf(stderr,"request_neighbour : sending key/command %s\n", key);
 	send(sockfd, key, strlen(key), 0);
 
-	usleep(1000);
-	memset(buf, '\0', 1024);
-	recv(sockfd, buf, MAXDATASIZE - 1, 0);
+	if(strcmp(type,"set")==0){
+        usleep(1000);
+        char *v = ITEM_data(it);
+        send(sockfd,v,it->nbytes,0);
+	}
 
+    usleep(1000);
+    memset(buf, '\0', 1024);
+
+	if (strcmp(type,"get")==0){
+        recv(sockfd, buf, 1024,0);
+        if(strncmp(buf,"NOT FOUND",9)){
+            memset(global_data_entry,'\0',1024);
+            recv(sockfd, global_data_entry, 1024,0);
+            fprintf(stderr,"get request propagation received value in binary from neighbour, value is %s\n",global_data_entry);
+        }
+    }
+    else{
+    	recv(sockfd, buf, MAXDATASIZE - 1, 0);
+    }
 	close(sockfd);
 	return buf;
 }
 
 static void serialize_key_value_str(char *key, char *flag1, int flag2,
-    int flag3, char *value, char *key_value_str) {
-	sprintf(key_value_str, "%s %s %d %d %s", key, flag1, flag2, flag3, value);
-	fprintf(stderr, "STRING:%s", key_value_str);
+    int flag3, char *key_and_metadata_str) {
+	sprintf(key_and_metadata_str, "%s %s %d %d", key, flag1, flag2, flag3);
+	fprintf(stderr, "STRING:%s\n", key_and_metadata_str);
 }
 
 static void deserialize_key_value_str(char *key, int *flag1, int *flag2,
-    int *flag3, char *value, char *key_value_str) {
-	sscanf(key_value_str, "%s %d %d %d %s", key, flag1, flag2, flag3, value);
+    int *flag3, char *key_and_metadata_str) {
+	sscanf(key_and_metadata_str, "%s %d %d %d", key, flag1, flag2, flag3);
 }
 
 static float distance_squared(Point p1,Point p2){
@@ -3231,12 +3248,13 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     fprintf(stderr,"Point (%f,%f) is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
 
                     node_info info = get_neighbour_information(key);
-                    request_neighbour(key,buf,"get",&info);
-                    fprintf(stderr, "buf is : %s",buf);
+                    request_neighbour(key,buf,"get",&info,NULL);
+                    fprintf(stderr, "buf is : %s\n",buf);
+                    fprintf(stderr," value is %s\n",global_data_entry);
                     if(strncmp(buf,"NOT FOUND",9))
                     {
-                        deserialize_key_value_str(key2,&flag,&time,&length,value,buf);
-                        fprintf(stderr,"final:%s %d %d %d %s",key2,flag,time,length,value);
+                        deserialize_key_value_str(key2,&flag,&time,&length,buf);
+                        fprintf(stderr,"final:%s %d %d %d",key2,flag,time,length);
                         char *flag_as_str = (char*)malloc(sizeof(char)*5);
                         sprintf(flag_as_str,"%d",flag);
                         char *length_as_str = (char*)malloc(sizeof(char)*5);
@@ -3249,7 +3267,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         add_iov(c, " ", 1);
                         add_iov(c,  length_as_str, strlen(length_as_str));
                         add_iov(c, "\r\n", 2);
-                        add_iov(c, value, strlen(ptr_to_value));
+                        add_iov(c, global_data_entry, strlen(global_data_entry));
                         add_iov(c, "\r\n", 2);
                     }
                 }
@@ -3283,16 +3301,17 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         {
                             node_info info = get_neighbour_information(key);
                             fprintf(stderr,"\n-------info-%s-\n",info.request_propogation);
-							request_neighbour(key,buf,"get",&info);
-							fprintf(stderr, "buf is : %s",buf);
+							request_neighbour(key,buf,"get",&info,NULL);
+							fprintf(stderr, "buf is : %s\n",buf);
+							fprintf(stderr," value is %s\n",global_data_entry);
 							if(strncmp(buf,"NOT FOUND",9))
 							{
-								deserialize_key_value_str(key2,&flag,&time,&length,value,buf);
+								deserialize_key_value_str(key2,&flag,&time,&length,buf);
 								char *flag_as_str = (char*)malloc(sizeof(char)*5);
                                 sprintf(flag_as_str,"%d",flag);
 								char *length_as_str = (char*)malloc(sizeof(char)*5);
                                 sprintf(length_as_str,"%d",length);
-								fprintf(stderr,"final:%s %d %d %d %s",key2,flag,time,length,value);
+								fprintf(stderr,"final:%s %d %d %d",key2,flag,time,length);
 								ptr_to_value=value;
 								add_iov(c, "VALUE ", 6);
 								add_iov(c, key2, strlen(key2));
@@ -3301,7 +3320,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 								add_iov(c, " ", 1);
 								add_iov(c,  length_as_str, strlen(length_as_str));
 								add_iov(c, "\r\n", 2);
-								add_iov(c, value, strlen(ptr_to_value));
+								add_iov(c, global_data_entry, strlen(global_data_entry));
 								add_iov(c, "\r\n", 2);
 							}
                         }
@@ -3834,7 +3853,7 @@ static void process_delete_command(conn *c, token_t *tokens,
         else{
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
             node_info info = get_neighbour_information(key);
-            request_neighbour(key,buf,"delete",&info);
+            request_neighbour(key,buf,"delete",&info,NULL);
             out_string(c, "DELETED");
         }
     }
@@ -3902,27 +3921,6 @@ static void process_slabs_automove_command(conn *c, token_t *tokens,
 	return;
 }
 
-static void store_key_value(char *key, int flags, int time, int length,
-		char* value) {
-	item *it;
-	it = item_get(key, strlen(key));
-	fprintf(stderr,"store_key_value key %s\n",key);
-	if (it) {
-		item_unlink(it);
-		item_remove(it);
-		}
-		it = item_alloc(key, strlen(key), flags, realtime(time), length+2);
-		char *ptr = ITEM_data(it);
-		sprintf(ptr, "%s\r\n", value);
-		item_link(it);
-
-		pthread_mutex_lock(&list_of_keys_lock);
-		mylist_delete(&list_of_keys, key);
-		mylist_add(&list_of_keys, key);
-		pthread_mutex_unlock(&list_of_keys_lock);
-
-}
-
 static void delete_key_locally(char *key) {
 	int nkey = strlen(key);
 	item* it = item_get(key, nkey);
@@ -3939,13 +3937,47 @@ static void delete_key_on_child(int child_fd, char *key) {
 	usleep(1000);
 }
 
+static void receive_and_store_key_value(int sockfd){
+    char key[1024];
+	int flag1, flag2, flag3, numbytes;
+
+    char buf2[1024];
+    memset(buf2, 0, 1024);
+    if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+    fprintf(stderr, "received %s\n", buf2);
+
+    deserialize_key_value_str(key, &flag1, &flag2, &flag3, buf2);
+    fprintf(stderr, "Client side:%s,%d,%d,%d\n", key, flag1, flag2, flag3);
+
+    item *it;
+    it = item_get(key, strlen(key));
+    fprintf(stderr,"store_key_value key %s\n",key);
+    if (it) {
+        item_unlink(it);
+        item_remove(it);
+    }
+    it = item_alloc(key, strlen(key), flag1, realtime(flag2), flag3+2);
+
+    //reads value in binary format from network
+    char *ptr = ITEM_data(it);
+    recv(sockfd, ptr, 1024,0);
+
+    item_link(it);
+
+    pthread_mutex_lock(&list_of_keys_lock);
+    mylist_delete(&list_of_keys, key);
+    mylist_add(&list_of_keys, key);
+    pthread_mutex_unlock(&list_of_keys_lock);
+}
+
 static void _receive_keys_and_trash_keys(int sockfd) {
 	int MAXDATASIZE = 1024;
 	int total_keys_to_be_received = 0;
-	char buf[1024], buf2[1024];
-	char key[1024];
-	int flag1, flag2, flag3, numbytes, i = 0;
-	char value[1024];
+	char buf[1024],buf2[1024];
+	int  numbytes, i = 0;
 	memset(buf, '\0', 1024);
 	if ((numbytes = recv(sockfd, buf,  sizeof(buf), 0)) == -1) {
 		perror("recv");
@@ -3956,17 +3988,7 @@ static void _receive_keys_and_trash_keys(int sockfd) {
 			total_keys_to_be_received);
 
 	for (i = 0; i < total_keys_to_be_received; i++) {
-		memset(buf2, 0, 1024);
-		if ((numbytes = recv(sockfd, buf2, sizeof(buf2), 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
-		fprintf(stderr, "received %s\n", buf2);
-
-		deserialize_key_value_str(key, &flag1, &flag2, &flag3, value, buf2);
-		fprintf(stderr, "Client side:%s,%d,%d,%d,%s\n", key, flag1, flag2,
-				flag3, value);
-		store_key_value(key, flag1, flag2, flag3, value);
+	    receive_and_store_key_value(sockfd);
 	}
 
 	// The following should not be required, but without it, parent didn't receive trash list keys from child when child was departing
@@ -4012,7 +4034,7 @@ static void deserialize_port_numbers2(char *s,char *neighbour_request_propogatio
 
 static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	int i = 0;
-	char *ptr, buf[1024], key_value_str[1024];
+	char *ptr, buf[1024], key_and_metadata_str[1024];
 
 	fprintf(stderr, "The list of keys to be sent:\n");
 	mylist_print(&keys_to_send);
@@ -4032,10 +4054,12 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
             item *it = item_get(key, strlen(key));
             ptr = strtok(ITEM_suffix(it), " ");
             fprintf(stderr, "nbytes---%d", it->nbytes-2);
-            serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2,
-                    ITEM_data(it), key_value_str);
-            fprintf(stderr, "sending key_value_str %s\n", key_value_str);
-            send(another_node_fd, key_value_str, strlen(key_value_str), 0);
+            serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2, key_and_metadata_str);
+            fprintf(stderr, "sending key_and_metadata_str %s\n", key_and_metadata_str);
+            send(another_node_fd, key_and_metadata_str, strlen(key_and_metadata_str), 0);
+            usleep(1000);
+            char *v = ITEM_data(it);
+            send(another_node_fd,v,it->nbytes-2,0);
 		}
 		delete_key_locally(key);
 	}
@@ -4112,7 +4136,7 @@ static void* split_migrate_keys_routine(void *tagArgs){
 static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	char *ptr;
 	item *it=NULL;
-	char key_value_str[1024],buf[1024];
+	char key_and_metadata_str[1024],buf[1024];
 	Point resolved_point = key_point(key);
 	if(mode == NORMAL_NODE){
 	    if(is_within_boundary(resolved_point,me.boundary)==1)
@@ -4121,11 +4145,11 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
 
             node_info info = get_neighbour_information(key);
-            request_neighbour(key,buf,"get",&info);
+            request_neighbour(key,buf,"get",&info,NULL);
             fprintf(stderr, "buf is : %s",buf);
             if(strncmp(buf,"NOT FOUND",9))
             {
-                fprintf(stderr,"key value str:%s", buf);
+                fprintf(stderr,"key value str:%s\n", buf);
                 send(neighbour_fd, buf, strlen(buf), 0);
             }
             else send(neighbour_fd,"NOT FOUND",strlen("NOT FOUND"),0);
@@ -4151,10 +4175,12 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	if(it)
 	{
 		ptr = strtok(ITEM_suffix(it), " ");
-		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2,
-				ITEM_data(it), key_value_str);
-		fprintf(stderr,"key value str:%s", key_value_str);
-		send(neighbour_fd, key_value_str, strlen(key_value_str), 0);
+		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2, key_and_metadata_str);
+		fprintf(stderr,"key value str:%s\n", key_and_metadata_str);
+		send(neighbour_fd, key_and_metadata_str, strlen(key_and_metadata_str), 0);
+		usleep(1000);
+        char *v = ITEM_data(it);
+        send(neighbour_fd,v,it->nbytes-2,0);
 	} else {
 		send(neighbour_fd, "NOT FOUND", 9, 0);
 	}
@@ -4170,9 +4196,9 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
         if(mylist_contains(&trash_both,key_to_transfer)!=1) {
             fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
             // the +4 in the next line removes "set " from command_to_transfer
-            sprintf(to_transfer, "%s %s", (command_to_transfer+4), ITEM_data(it));
+            sprintf(to_transfer, "%s", (command_to_transfer+4));
             node_info info = get_neighbour_information(key_to_transfer);
-            request_neighbour(to_transfer, buf, "set",&info);
+            request_neighbour(to_transfer, buf, "set",&info,it);
         }
         pthread_mutex_lock(&list_of_keys_lock);
         mylist_delete(&list_of_keys, key_to_transfer);
@@ -4186,18 +4212,8 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
 }
 
 static void updating_key_from_neighbour(int new_fd){
-	char key[1024], value[1024];
-	int flags, time, length,numbytes,MAXDATASIZE=1024;
-    char buf[1024];
-    memset(buf, '\0', 1024);
-    if ((numbytes = recv(new_fd, buf, MAXDATASIZE - 1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
-    deserialize_key_value_str(key, &flags, &time, &length, value, buf);
-    fprintf(stderr,"storing key %s received from neighbour",key);
-    store_key_value(key,flags,time,length,value);
-    sprintf(command_to_transfer, "set %s %d %d %d", key,flags,time,length);
+	char key[1024];
+    receive_and_store_key_value(new_fd);
 
 	if(mode == NORMAL_NODE){
 	    _propagate_update_command_if_required(key);
@@ -4233,7 +4249,7 @@ static void deleting_key_from_neighbour(char *key){
             fprintf(stderr,"Point (%f,%f)\n is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
             node_info info = get_neighbour_information(key);
             char buf[1024];
-            request_neighbour(key,buf,"delete",&info);
+            request_neighbour(key,buf,"delete",&info,NULL);
         }
     }
     else
