@@ -4169,7 +4169,8 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
     if (is_within_boundary(resolved_point, me.boundary) != 1) {
         if(mylist_contains(&trash_both,key_to_transfer)!=1) {
             fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
-            sprintf(to_transfer, "%s %s", command_to_transfer, ITEM_data(it));
+            // the +4 in the next line removes "set " from command_to_transfer
+            sprintf(to_transfer, "%s %s", (command_to_transfer+4), ITEM_data(it));
             node_info info = get_neighbour_information(key_to_transfer);
             request_neighbour(to_transfer, buf, "set",&info);
         }
@@ -4185,7 +4186,7 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
 }
 
 static void updating_key_from_neighbour(int new_fd){
-	char key[1024], value[1024], cmd[1024];
+	char key[1024], value[1024];
 	int flags, time, length,numbytes,MAXDATASIZE=1024;
     char buf[1024];
     memset(buf, '\0', 1024);
@@ -4193,8 +4194,7 @@ static void updating_key_from_neighbour(int new_fd){
         perror("recv");
         exit(1);
     }
-    sscanf(buf,"%s %s %d %d %d %s",cmd,key,&flags,&time,&length,value);
-
+    deserialize_key_value_str(key, &flags, &time, &length, value, buf);
     fprintf(stderr,"storing key %s received from neighbour",key);
     store_key_value(key,flags,time,length,value);
     sprintf(command_to_transfer, "set %s %d %d %d", key,flags,time,length);
