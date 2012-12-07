@@ -3095,10 +3095,6 @@ static void deserialize_key_value_str(char *key, int *flag1, int *flag2,
     int *flag3, char *value, char *key_value_str) {
 	sscanf(key_value_str, "%s %d %d %d %s", key, flag1, flag2, flag3, value);
 }
-static void deserialize_key_value_str2(char *key, char *flag1, int *flag2,
-    char *flag3, char *value, char *key_value_str) {
-	sscanf(key_value_str, "%s %s %d %s %s", key, flag1, flag2, flag3, value);
-}
 
 static float distance_squared(Point p1,Point p2){
     float x_component = p1.x  - p2.x;
@@ -3205,10 +3201,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 	char *suffix;
 	assert(c != NULL);
 	char buf[1024], value[1024];
-	char flag[1024], length[1024];
+	int flag;
+	int length;
 	char *ptr_to_value;
-	char *ptr_to_length;
-	char *ptr_to_flag;
 	it = NULL;
 
     print_ecosystem();
@@ -3240,17 +3235,19 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     fprintf(stderr, "buf is : %s",buf);
                     if(strncmp(buf,"NOT FOUND",9))
                     {
-                        deserialize_key_value_str2(key2,flag,&time,length,value,buf);
-                        fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+                        deserialize_key_value_str(key2,&flag,&time,&length,value,buf);
+                        fprintf(stderr,"final:%s %d %d %d %s",key2,flag,time,length,value);
+                        char *flag_as_str = (char*)malloc(sizeof(char)*5);
+                        sprintf(flag_as_str,"%d",flag);
+                        char *length_as_str = (char*)malloc(sizeof(char)*5);
+                        sprintf(length_as_str,"%d",length);
                         ptr_to_value=value;
-                        ptr_to_length=length;
-                        ptr_to_flag=flag;
                         add_iov(c, "VALUE ", 6);
                         add_iov(c, key2, strlen(key2));
                         add_iov(c, " ", 1);
-                        add_iov(c,  flag,strlen(ptr_to_flag));
+                        add_iov(c,  flag_as_str,strlen(flag_as_str));
                         add_iov(c, " ", 1);
-                        add_iov(c,  length, strlen(ptr_to_length));
+                        add_iov(c,  length_as_str, strlen(length_as_str));
                         add_iov(c, "\r\n", 2);
                         add_iov(c, value, strlen(ptr_to_value));
                         add_iov(c, "\r\n", 2);
@@ -3290,17 +3287,19 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 							fprintf(stderr, "buf is : %s",buf);
 							if(strncmp(buf,"NOT FOUND",9))
 							{
-								deserialize_key_value_str2(key2,flag,&time,length,value,buf);
-								fprintf(stderr,"final:%s %s %d %s %s",key2,flag,time,length,value);
+								deserialize_key_value_str(key2,&flag,&time,&length,value,buf);
+								char *flag_as_str = (char*)malloc(sizeof(char)*5);
+                                sprintf(flag_as_str,"%d",flag);
+								char *length_as_str = (char*)malloc(sizeof(char)*5);
+                                sprintf(length_as_str,"%d",length);
+								fprintf(stderr,"final:%s %d %d %d %s",key2,flag,time,length,value);
 								ptr_to_value=value;
-								ptr_to_length=length;
-								ptr_to_flag=flag;
 								add_iov(c, "VALUE ", 6);
 								add_iov(c, key2, strlen(key2));
 								add_iov(c, " ", 1);
-								add_iov(c,  flag,strlen(ptr_to_flag));
+								add_iov(c,  flag_as_str,strlen(flag_as_str));
 								add_iov(c, " ", 1);
-								add_iov(c,  length, strlen(ptr_to_length));
+								add_iov(c,  length_as_str, strlen(length_as_str));
 								add_iov(c, "\r\n", 2);
 								add_iov(c, value, strlen(ptr_to_value));
 								add_iov(c, "\r\n", 2);
