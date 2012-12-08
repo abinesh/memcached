@@ -3072,10 +3072,13 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	sprintf(str,"request_neighbour(type=%s,to_transfer=%s)",type,key);
     sockfd = connect_to("localhost",neighbour->request_propogation,str);
 
+    ///imp sleep..increased two zero.
+    usleep(100000);
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending type %s\n", type);
 	send(sockfd, type, strlen(type), 0);
-	usleep(1000);
+	///imp sleep..increased two zero.
+	usleep(1000000);
 
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending key/command %s\n", key);
@@ -3083,7 +3086,9 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	fprintf(stderr,"Sent command to neighbour %s\n",key);
 
 	if(strcmp(type,"set")==0){
-        usleep(1000);
+		///imp sleep..increased two zero.
+
+	    usleep(100000);
         if(it){
             char *v = ITEM_data(it);
             send(sockfd,v,it->nbytes,0);
@@ -3095,7 +3100,8 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
         }
 	}
 
-    usleep(1000);
+	//increasing 0
+    usleep(100000);
     memset(buf, '\0', 1024);
 
 	if (strcmp(type,"get")==0){
@@ -3228,10 +3234,10 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 	token_t *key_token = &tokens[KEY_TOKEN];
 	char *suffix;
 	assert(c != NULL);
-	char buf[1024], value[1024];
+	char buf[1024];//, value[1024];
 	int flag;
 	int length;
-	char *ptr_to_value;
+//	char *ptr_to_value;
 	it = NULL;
 
     print_ecosystem();
@@ -3259,6 +3265,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     fprintf(stderr,"Point (%f,%f) is not in zoneboundry([%f,%f],[%f,%f])\n", resolved_point.x,resolved_point.y,me.boundary.from.x,me.boundary.from.y,me.boundary.to.x,me.boundary.to.y);
 
                     node_info info = get_neighbour_information(key);
+
+                    //adding sleep
+                    usleep(100000);
+
+
                     request_neighbour(key,buf,"get",&info,NULL);
                     fprintf(stderr, "buf is : %s\n",buf);
                     fprintf(stderr," value is %s\n",global_data_entry);
@@ -3270,7 +3281,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         sprintf(flag_as_str,"%d",flag);
                         char *length_as_str = (char*)malloc(sizeof(char)*5);
                         sprintf(length_as_str,"%d",length);
-                        ptr_to_value=value;
+  //                      ptr_to_value=value;
                         add_iov(c, "VALUE ", 6);
                         add_iov(c, key2, strlen(key2));
                         add_iov(c, " ", 1);
@@ -3323,7 +3334,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 								char *length_as_str = (char*)malloc(sizeof(char)*5);
                                 sprintf(length_as_str,"%d",length);
 								fprintf(stderr,"final:%s %d %d %d",key2,flag,time,length);
-								ptr_to_value=value;
+//								ptr_to_value=value;
 								add_iov(c, "VALUE ", 6);
 								add_iov(c, key2, strlen(key2));
 								add_iov(c, " ", 1);
@@ -3944,6 +3955,8 @@ static void delete_key_locally(char *key) {
 	}
 }
 static void delete_key_on_child(int child_fd, char *key) {
+	//adding sleep before...
+	usleep(100000);
 	send(child_fd, key, strlen(key), 0);
 	usleep(1000);
 }
@@ -3974,7 +3987,18 @@ static void receive_and_store_key_value(int sockfd){
 
     //reads value in binary format from network
     char *ptr = ITEM_data(it);
+    char *temp;
+    int count = 0;
     recv(sockfd, ptr, 1024,0);
+    fprintf(stderr,"value recd iss:%s",ptr);
+    count=strlen(ptr);
+
+    temp=ptr+count;
+
+
+  //  ptr=ptr+it->nbytes;
+    strcpy(temp,"\r\n");
+    fprintf(stderr,"value recd iss2:%s,temp:%s",ptr,temp);
 
     item_link(it);
 
@@ -4051,7 +4075,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	mylist_print(&keys_to_send);
 
 	//v imp sleep
-	usleep(10000*5);
+	usleep(100000);
+	//usleep(10000*5);
 	sprintf(buf, "%d", keys_to_send.size);
 	if (send(another_node_fd, buf, strlen(buf), 0) == -1)
 		perror("send");
@@ -4059,7 +4084,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 	for (i = 0; i < keys_to_send.size; i++) {
 		char *key = keys_to_send.array[i];
 		if(mylist_contains(&trash_both,key) != 1){
-            usleep(10000);
+			//adding one more zero
+            usleep(100000);
             fprintf(stderr,"key to migrate is %s\n",key);
             fprintf(stderr,"length is %d\n",(int)strlen(key));
             item *it = item_get(key, strlen(key));
@@ -4068,7 +4094,8 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
             serialize_key_value_str(key, ptr, it->exptime, it->nbytes-2, key_and_metadata_str);
             fprintf(stderr, "sending key_and_metadata_str %s\n", key_and_metadata_str);
             send(another_node_fd, key_and_metadata_str, strlen(key_and_metadata_str), 0);
-            usleep(1000);
+            //adding zero
+            usleep(100000);
             char *v = ITEM_data(it);
             send(another_node_fd,v,it->nbytes-2,0);
 		}
@@ -4085,8 +4112,14 @@ static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
 	mylist_print(&trash_both);
 
 	sprintf(buf, "%d", trash_both.size);
+
+	//adding sleep before...
+		usleep(100000);
+
 	send(child_node_fd, buf, strlen(buf), 0);
-	usleep(1000);
+
+	//adding zeros
+	usleep(100000);
 	for (i = 0; i < trash_both.size; i++) {
 		char *key = trash_both.array[i];
 		delete_key_locally(key);
@@ -4161,9 +4194,17 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
             if(strncmp(buf,"NOT FOUND",9))
             {
                 fprintf(stderr,"key value str:%s\n", buf);
+                //putting usleep  and two more zeros
+                usleep(100000);
                 send(neighbour_fd, buf, strlen(buf), 0);
             }
-            else send(neighbour_fd,"NOT FOUND",strlen("NOT FOUND"),0);
+            else
+            	{
+            	//putting usleep  and two more zeros
+            	    usleep(100000);
+            		send(neighbour_fd,"NOT FOUND",strlen("NOT FOUND"),0);
+
+            	}
         }
 	}
 	else
@@ -4188,8 +4229,11 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 		ptr = strtok(ITEM_suffix(it), " ");
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2, key_and_metadata_str);
 		fprintf(stderr,"key value str:%s\n", key_and_metadata_str);
+		//adding usleep
+		usleep(100000);
 		send(neighbour_fd, key_and_metadata_str, strlen(key_and_metadata_str), 0);
-		usleep(1000);
+		//adding zero
+		usleep(100000);
         char *v = ITEM_data(it);
         send(neighbour_fd,v,it->nbytes-2,0);
 	} else {
@@ -4403,6 +4447,9 @@ static void *node_propagation_thread_routine(void *args){
 		}
 		else if (!strcmp(buf, "set")) {
 			    updating_key_from_neighbour(new_fd);
+			    //adding usleep
+			    usleep(100000);
+
             if ((numbytes = send(new_fd, "STORED", strlen("STORED"), 0)) == -1) {
                 perror("recv");
                 exit(1);
@@ -4418,6 +4465,8 @@ static void *node_propagation_thread_routine(void *args){
             }
 
             deleting_key_from_neighbour(buf);
+            //adding usleep
+            			    usleep(100000);
             if ((numbytes = send(new_fd, "DELETED", strlen("DELETED"), 0)) == -1) {
                 perror("recv");
                 exit(1);
@@ -4547,19 +4596,22 @@ static int is_neighbour(ZoneBoundary a, ZoneBoundary b){
 
 static void _send_add_remove_update_neighbour_command(char *command,int neighbour_fd,node_info n){
     char buf[1024];
-    usleep(1000);
+    //adding zero
+    usleep(100000);
     fprintf(stderr,"Sending %s\n",command);
     if (send(neighbour_fd,command,strlen(command),0)==-1)
         perror("send");
 
-    usleep(1000);
+    //adding zero
+    usleep(100000);
     memset(buf,'\0',1024);
     serialize_port_numbers(n.request_propogation, n.node_removal,buf);
     fprintf(stderr,"Sending %s\n",buf);
     if (send(neighbour_fd,buf,strlen(buf),0) == -1)
         perror("send");
 
-    usleep(1000);
+    //adding zero
+    usleep(100000);
     memset(buf,'\0',1024);
     serialize_boundary(n.boundary,buf);
     fprintf(stderr,"Sending %s\n",buf);
@@ -4760,8 +4812,12 @@ static int send_neighbours_to_child(int new_fd){
 			flag=1;
 			fprintf(stderr,"\nsending neighbour boundary from parent to be updated in clients neighbour list:%f,%f\n",neighbour[counter].boundary.from.x , my_new_boundary.from.x);
 	        serialize_boundary(neighbour[counter].boundary,boundary_str);
+
+	        //adding usleep
+	        usleep(100000);
 	        send(new_fd,boundary_str,strlen(boundary_str),0);
-	        usleep(1000);
+	        //adding zero
+	        usleep(100000);
 	        serialize_port_numbers(neighbour[counter].request_propogation,neighbour[counter].node_removal,port_number_str);
 	        send(new_fd,port_number_str,strlen(port_number_str),0);
 	        return counter;
@@ -4870,16 +4926,20 @@ static void *join_request_listener_thread_routine(void * args) {
         serialize_boundary(my_new_boundary, my_new_boundary_str);
 
         mylist_init("trash_both",&trash_both);
+        //adding usleep
+        usleep(100000);
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
 
-		usleep(1000);
+		//adding zero
+		usleep(100000);
 		if (send(new_fd, my_new_boundary_str, strlen(my_new_boundary_str), 0) == -1)
             perror("send");
 
 		serialize_port_numbers(me.request_propogation, me.node_removal,buf);
 
-		usleep(1000);
+		//adding zero
+		usleep(100000);
 		fprintf(stderr,"\nsending portnumbers:%s\n",buf);
 
 		if (send(new_fd, buf, strlen(buf), 0) == -1)
