@@ -3125,8 +3125,7 @@ static void serialize_key_value_str(char *key, char *flag1, int flag2,
 	fprintf(stderr, "STRING:%s\n", key_and_metadata_str);
 }
 
-static void deserialize_key_value_str(char *key, int *flag1, int *flag2,
-    int *flag3, char *key_and_metadata_str) {
+static void deserialize_key_value_str(char *key, int *flag1, int *flag2, int *flag3, char *key_and_metadata_str) {
 	sscanf(key_and_metadata_str, "%s %d %d %d", key, flag1, flag2, flag3);
 }
 
@@ -4181,6 +4180,10 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	char *ptr;
 	item *it=NULL;
 	char key_and_metadata_str[1024],buf[1024];
+    char key1[1024];
+    int flag1, flag2, flag3;
+    int i;
+
 	Point resolved_point = key_point(key);
 	if(mode == NORMAL_NODE){
 	    if(is_within_boundary(resolved_point,me.boundary)==1)
@@ -4190,21 +4193,26 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 
             node_info info = get_neighbour_information(key);
             request_neighbour(key,buf,"get",&info,NULL);
-            fprintf(stderr, "buf is : %s",buf);
-            if(strncmp(buf,"NOT FOUND",9))
-            {
-                fprintf(stderr,"key value str:%s\n", buf);
-                //putting usleep  and two more zeros
-                usleep(100000);
-                send(neighbour_fd, buf, strlen(buf), 0);
-            }
-            else
-            	{
-            	//putting usleep  and two more zeros
-            	    usleep(100000);
-            		send(neighbour_fd,"NOT FOUND",strlen("NOT FOUND"),0);
+            fprintf(stderr, "buf is : %s\n",buf);
+            deserialize_key_value_str(key1, &flag1, &flag2, &flag3, buf);
+            fprintf(stderr, "Client side:%s,%d,%d,%d\n", key1, flag1, flag2, flag3);
 
-            	}
+            it =  item_get(key1, strlen(key1));
+            if (it) {
+                item_unlink(it);
+                item_remove(it);
+            }
+            it = item_alloc(key1, strlen(key1), flag1, realtime(flag2), flag3+2);
+
+            fprintf(stderr,"Received in global: %s\n",global_data_entry);
+            ptr = ITEM_data(it);
+            for(i=0;i<flag3;i++){
+                *ptr=global_data_entry[i];
+                fprintf(stderr,"ptr=%c,glob=%c\n",*ptr,global_data_entry[i]);
+                ptr++;
+            }
+            strcpy(ptr,"\r\n");
+            fprintf(stderr,"Copied into ptr: %s\n",ptr);
         }
 	}
 	else
