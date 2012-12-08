@@ -1,0 +1,1588 @@
+➜  memcached git:(master) ./start-node 11213
+Making clean in doc
+test -z "" || rm -f
+Making clean in .
+test -z "memcached" || rm -f memcached
+test -z " " || rm -f
+test -z "memcached-debug sizes testapp timedrun" || rm -f memcached-debug sizes testapp timedrun
+rm -f *.o
+test -z "*.gcov *.gcno *.gcda *.tcov" || rm -f *.gcov *.gcno *.gcda *.tcov
+make  install-recursive
+Making install in doc
+make  install-am
+make[4]: Nothing to be done for `install-exec-am'.
+ .././install-sh -c -d '/usr/local/share/man/man1'
+ /usr/bin/install -c -m 644 memcached.1 '/usr/local/share/man/man1'
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-memcached.o -MD -MP -MF .deps/memcached-memcached.Tpo -c -o memcached-memcached.o `test -f 'memcached.c' || echo './'`memcached.c
+mv -f .deps/memcached-memcached.Tpo .deps/memcached-memcached.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-hash.o -MD -MP -MF .deps/memcached-hash.Tpo -c -o memcached-hash.o `test -f 'hash.c' || echo './'`hash.c
+mv -f .deps/memcached-hash.Tpo .deps/memcached-hash.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slabs.o -MD -MP -MF .deps/memcached-slabs.Tpo -c -o memcached-slabs.o `test -f 'slabs.c' || echo './'`slabs.c
+mv -f .deps/memcached-slabs.Tpo .deps/memcached-slabs.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-items.o -MD -MP -MF .deps/memcached-items.Tpo -c -o memcached-items.o `test -f 'items.c' || echo './'`items.c
+mv -f .deps/memcached-items.Tpo .deps/memcached-items.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-assoc.o -MD -MP -MF .deps/memcached-assoc.Tpo -c -o memcached-assoc.o `test -f 'assoc.c' || echo './'`assoc.c
+mv -f .deps/memcached-assoc.Tpo .deps/memcached-assoc.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-thread.o -MD -MP -MF .deps/memcached-thread.Tpo -c -o memcached-thread.o `test -f 'thread.c' || echo './'`thread.c
+mv -f .deps/memcached-thread.Tpo .deps/memcached-thread.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-daemon.o -MD -MP -MF .deps/memcached-daemon.Tpo -c -o memcached-daemon.o `test -f 'daemon.c' || echo './'`daemon.c
+mv -f .deps/memcached-daemon.Tpo .deps/memcached-daemon.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-stats.o -MD -MP -MF .deps/memcached-stats.Tpo -c -o memcached-stats.o `test -f 'stats.c' || echo './'`stats.c
+mv -f .deps/memcached-stats.Tpo .deps/memcached-stats.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-util.o -MD -MP -MF .deps/memcached-util.Tpo -c -o memcached-util.o `test -f 'util.c' || echo './'`util.c
+mv -f .deps/memcached-util.Tpo .deps/memcached-util.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-cache.o -MD -MP -MF .deps/memcached-cache.Tpo -c -o memcached-cache.o `test -f 'cache.c' || echo './'`cache.c
+mv -f .deps/memcached-cache.Tpo .deps/memcached-cache.Po
+gcc -std=gnu99  -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls   -o memcached memcached-memcached.o memcached-hash.o memcached-slabs.o memcached-items.o memcached-assoc.o memcached-thread.o memcached-daemon.o memcached-stats.o memcached-util.o memcached-cache.o    -levent
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-memcached.o -MD -MP -MF .deps/memcached_debug-memcached.Tpo -c -o memcached_debug-memcached.o `test -f 'memcached.c' || echo './'`memcached.c
+mv -f .deps/memcached_debug-memcached.Tpo .deps/memcached_debug-memcached.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-hash.o -MD -MP -MF .deps/memcached_debug-hash.Tpo -c -o memcached_debug-hash.o `test -f 'hash.c' || echo './'`hash.c
+mv -f .deps/memcached_debug-hash.Tpo .deps/memcached_debug-hash.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-slabs.o -MD -MP -MF .deps/memcached_debug-slabs.Tpo -c -o memcached_debug-slabs.o `test -f 'slabs.c' || echo './'`slabs.c
+mv -f .deps/memcached_debug-slabs.Tpo .deps/memcached_debug-slabs.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-items.o -MD -MP -MF .deps/memcached_debug-items.Tpo -c -o memcached_debug-items.o `test -f 'items.c' || echo './'`items.c
+mv -f .deps/memcached_debug-items.Tpo .deps/memcached_debug-items.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-assoc.o -MD -MP -MF .deps/memcached_debug-assoc.Tpo -c -o memcached_debug-assoc.o `test -f 'assoc.c' || echo './'`assoc.c
+mv -f .deps/memcached_debug-assoc.Tpo .deps/memcached_debug-assoc.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-thread.o -MD -MP -MF .deps/memcached_debug-thread.Tpo -c -o memcached_debug-thread.o `test -f 'thread.c' || echo './'`thread.c
+mv -f .deps/memcached_debug-thread.Tpo .deps/memcached_debug-thread.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-daemon.o -MD -MP -MF .deps/memcached_debug-daemon.Tpo -c -o memcached_debug-daemon.o `test -f 'daemon.c' || echo './'`daemon.c
+mv -f .deps/memcached_debug-daemon.Tpo .deps/memcached_debug-daemon.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-stats.o -MD -MP -MF .deps/memcached_debug-stats.Tpo -c -o memcached_debug-stats.o `test -f 'stats.c' || echo './'`stats.c
+mv -f .deps/memcached_debug-stats.Tpo .deps/memcached_debug-stats.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-util.o -MD -MP -MF .deps/memcached_debug-util.Tpo -c -o memcached_debug-util.o `test -f 'util.c' || echo './'`util.c
+mv -f .deps/memcached_debug-util.Tpo .deps/memcached_debug-util.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-cache.o -MD -MP -MF .deps/memcached_debug-cache.Tpo -c -o memcached_debug-cache.o `test -f 'cache.c' || echo './'`cache.c
+mv -f .deps/memcached_debug-cache.Tpo .deps/memcached_debug-cache.Po
+gcc -std=gnu99 -fprofile-arcs -ftest-coverage -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls   -o memcached-debug memcached_debug-memcached.o memcached_debug-hash.o memcached_debug-slabs.o memcached_debug-items.o memcached_debug-assoc.o memcached_debug-thread.o memcached_debug-daemon.o memcached_debug-stats.o memcached_debug-util.o memcached_debug-cache.o   -lgcov  -levent
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.     -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT sizes.o -MD -MP -MF .deps/sizes.Tpo -c -o sizes.o sizes.c
+mv -f .deps/sizes.Tpo .deps/sizes.Po
+gcc -std=gnu99  -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls   -o sizes sizes.o  -levent
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.     -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT testapp.o -MD -MP -MF .deps/testapp.Tpo -c -o testapp.o testapp.c
+mv -f .deps/testapp.Tpo .deps/testapp.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.     -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT util.o -MD -MP -MF .deps/util.Tpo -c -o util.o util.c
+mv -f .deps/util.Tpo .deps/util.Po
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.     -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT cache.o -MD -MP -MF .deps/cache.Tpo -c -o cache.o cache.c
+mv -f .deps/cache.Tpo .deps/cache.Po
+gcc -std=gnu99  -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls   -o testapp testapp.o util.o cache.o  -levent
+gcc -std=gnu99 -DHAVE_CONFIG_H -I.     -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT timedrun.o -MD -MP -MF .deps/timedrun.Tpo -c -o timedrun.o timedrun.c
+mv -f .deps/timedrun.Tpo .deps/timedrun.Po
+gcc -std=gnu99  -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls   -o timedrun timedrun.o  -levent
+ ./install-sh -c -d '/usr/local/bin'
+  /usr/bin/install -c memcached '/usr/local/bin'
+ ./install-sh -c -d '/usr/local/include/memcached'
+ /usr/bin/install -c -m 644 protocol_binary.h '/usr/local/include/memcached'
+
+Bootstrap is at localhost:11311
+In connect_to_boostrap: attempting to connect_to localhost:11311
+In connect_to_boostrap,client: connect: Connection refused
+In connect_to_boostrap : client: connected successfully to 127.0.0.1:11311(Ignore previous errors for this)
+client: received '64679'
+Received [(0.000000,0.000000) to (50.000000,50.000000)]
+client: received 'NOTFIRST 64664'
+client: received buf2:'NOTFIRST'
+
+Node starting as Child, connecting to 64664 to receive keys
+slab class   1: chunk size        96 perslab   10922
+slab class   2: chunk size       120 perslab    8738
+slab class   3: chunk size       152 perslab    6898
+slab class   4: chunk size       192 perslab    5461
+slab class   5: chunk size       240 perslab    4369
+slab class   6: chunk size       304 perslab    3449
+slab class   7: chunk size       384 perslab    2730
+slab class   8: chunk size       480 perslab    2184
+slab class   9: chunk size       600 perslab    1747
+slab class  10: chunk size       752 perslab    1394
+slab class  11: chunk size       944 perslab    1110
+slab class  12: chunk size      1184 perslab     885
+slab class  13: chunk size      1480 perslab     708
+slab class  14: chunk size      1856 perslab     564
+slab class  15: chunk size      2320 perslab     451
+slab class  16: chunk size      2904 perslab     361
+slab class  17: chunk size      3632 perslab     288
+slab class  18: chunk size      4544 perslab     230
+slab class  19: chunk size      5680 perslab     184
+slab class  20: chunk size      7104 perslab     147
+slab class  21: chunk size      8880 perslab     118
+slab class  22: chunk size     11104 perslab      94
+slab class  23: chunk size     13880 perslab      75
+slab class  24: chunk size     17352 perslab      60
+slab class  25: chunk size     21696 perslab      48
+slab class  26: chunk size     27120 perslab      38
+slab class  27: chunk size     33904 perslab      30
+slab class  28: chunk size     42384 perslab      24
+slab class  29: chunk size     52984 perslab      19
+slab class  30: chunk size     66232 perslab      15
+slab class  31: chunk size     82792 perslab      12
+slab class  32: chunk size    103496 perslab      10
+slab class  33: chunk size    129376 perslab       8
+slab class  34: chunk size    161720 perslab       6
+slab class  35: chunk size    202152 perslab       5
+slab class  36: chunk size    252696 perslab       4
+slab class  37: chunk size    315872 perslab       3
+slab class  38: chunk size    394840 perslab       2
+slab class  39: chunk size    493552 perslab       2
+slab class  40: chunk size    616944 perslab       1
+slab class  41: chunk size    771184 perslab       1
+slab class  42: chunk size   1048576 perslab       1
+Mode set as : SPLITTING_CHILD_INIT
+lock type is correct here, passing it on
+In connect_and_split_thread_routine: attempting to connect_to localhost:64664
+In connect_and_split_thread_routine,client: connect: Connection refused
+In connect_and_split_thread_routine : client: connected successfully to 127.0.0.1:64664(Ignore previous errors for this)
+in node_propagation_thread_routine
+The actual port number is 64682
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: waiting for connections...
+in node_removal_listener_thread_routine
+The actual port number is 64683
+node_removal_listener_thread_routine : server: waiting for connections...
+node_removal_listener_thread_routine : server: waiting for connections...
+Received [(12.500000,0.000000) to (25.000000,50.000000)]
+client's boundary assigned by server
+[(12.500000,0.000000) to (25.000000,50.000000)]
+Received [(0.000000,0.000000) to (12.500000,50.000000)]
+client received neighbours boundary
+
+ Got port numbers: 64665 64666
+sending client portnumbers: 64682 64683
+receiving from parent1:[(25.000000,0.000000) to (50.000000,50.000000)]receiving from parent2: 64673 64674 receiving from parent3:64673,64674Mode changed: SPLITTING_CHILD_INIT -> SPLITTING_CHILD_MIGRATING
+Total keys to be received = 10
+received A30 0 5003 5
+Client side:A30,0,5003,5
+got lock type
+> NOT FOUND A30
+store_key_value key A30
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(0,[])
+all_keys:(1,[A30,])
+received A31 0 5003 5
+Client side:A31,0,5003,5
+got lock type
+> NOT FOUND A31
+store_key_value key A31
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(1,[A30,])
+all_keys:(2,[A30,A31,])
+received A32 0 5003 5
+Client side:A32,0,5003,5
+got lock type
+> NOT FOUND A32
+store_key_value key A32
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(2,[A30,A31,])
+all_keys:(3,[A30,A31,A32,])
+received A33 0 5003 5
+Client side:A33,0,5003,5
+got lock type
+> NOT FOUND A33
+store_key_value key A33
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(3,[A30,A31,A32,])
+all_keys:(4,[A30,A31,A32,A33,])
+received A34 0 5003 5
+Client side:A34,0,5003,5
+got lock type
+> NOT FOUND A34
+store_key_value key A34
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(4,[A30,A31,A32,A33,])
+all_keys:(5,[A30,A31,A32,A33,A34,])
+received A35 0 5003 5
+Client side:A35,0,5003,5
+got lock type
+> NOT FOUND A35
+store_key_value key A35
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(5,[A30,A31,A32,A33,A34,])
+all_keys:(6,[A30,A31,A32,A33,A34,A35,])
+received A36 0 5003 5
+Client side:A36,0,5003,5
+got lock type
+> NOT FOUND A36
+store_key_value key A36
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(6,[A30,A31,A32,A33,A34,A35,])
+all_keys:(7,[A30,A31,A32,A33,A34,A35,A36,])
+received A37 0 5003 5
+Client side:A37,0,5003,5
+got lock type
+> NOT FOUND A37
+store_key_value key A37
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(7,[A30,A31,A32,A33,A34,A35,A36,])
+all_keys:(8,[A30,A31,A32,A33,A34,A35,A36,A37,])
+received A38 0 5003 5
+Client side:A38,0,5003,5
+got lock type
+> NOT FOUND A38
+store_key_value key A38
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(8,[A30,A31,A32,A33,A34,A35,A36,A37,])
+all_keys:(9,[A30,A31,A32,A33,A34,A35,A36,A37,A38,])
+received A39 0 5003 5
+Client side:A39,0,5003,5
+got lock type
+> NOT FOUND A39
+store_key_value key A39
+value recd iss:abcdevalue recd iss2:abcde
+,temp:
+got lock type
+all_keys:(9,[A30,A31,A32,A33,A34,A35,A36,A37,A38,])
+all_keys:(10,[A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,])
+Total keys to be deleted = 0
+Mode changed: SPLITTING_CHILD_MIGRATING -> NORMAL_NODE
+
+Bootstrap node removal routine is at localhost:11312
+In send_parent_and_my_info_to_bootstrap: attempting to connect_to localhost:11312
+In send_parent_and_my_info_to_bootstrap,client: connect: Connection refused
+In send_parent_and_my_info_to_bootstrap : client: connected successfully to 127.0.0.1:11312(Ignore previous errors for this)
+------------
+Me:(64679,64682,64683,((12.500000,0.000000) to (25.000000,50.000000)))
+Neighbours list:
+(Port numbers, boundary)
+0
+(NULL,64665,64666,((0.000000,0.000000) to (12.500000,50.000000)))
+1
+(NULL,64673,64674,((25.000000,0.000000) to (50.000000,50.000000)))
+------------
+in join_request_listener_thread_routine lock passed on properly
+
+in join req....me.joinport:64679
+<21 server listening (auto-negotiate)
+<18 server listening (auto-negotiate)
+join_request_listener_thread_routine : server: waiting for connections...
+<23 send buffer was 9216, now 5592405
+<23 server listening (udp)
+<24 send buffer was 9216, now 5592405
+<23 server listening (udp)
+<24 server listening (udp)
+<24 server listening (udp)
+<23 server listening (udp)
+<23 server listening (udp)
+<24 server listening (udp)
+<24 server listening (udp)
+Current boundaries:
+World boundary:[(0.000000,0.000000) to (50.000000,50.000000)]
+My boundary:[(12.500000,0.000000) to (25.000000,50.000000)]
+My new boundary:[(12.500000,0.000000) to (25.000000,50.000000)]
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A10 projects to (47.000000,47.000000)
+Point (47.000000,47.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A10 projects to (47.000000,47.000000)
+Distance squared = 2144.562500
+In request_neighbour(type=get,to_transfer=A10): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A10),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A10) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A10
+Sent command to neighbour A10
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A10 0 5003 5
+Client side:A10,0,5003,5
+got lock type
+> NOT FOUND A10
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A10 0 5036 5
+key value str:A10 0 5036 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A11 projects to (48.000000,48.000000)
+Point (48.000000,48.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A11 projects to (48.000000,48.000000)
+Distance squared = 2272.062500
+In request_neighbour(type=get,to_transfer=A11): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A11),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A11) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A11
+Sent command to neighbour A11
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A11 0 5003 5
+Client side:A11,0,5003,5
+got lock type
+> NOT FOUND A11
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A11 0 5039 5
+key value str:A11 0 5039 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A12 projects to (49.000000,49.000000)
+Point (49.000000,49.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A12 projects to (49.000000,49.000000)
+Distance squared = 2403.562500
+In request_neighbour(type=get,to_transfer=A12): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A12),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A12) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A12
+Sent command to neighbour A12
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A12 0 5003 5
+Client side:A12,0,5003,5
+got lock type
+> NOT FOUND A12
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A12 0 5041 5
+key value str:A12 0 5041 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A20 projects to (30.000000,30.000000)
+Point (30.000000,30.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A20 projects to (30.000000,30.000000)
+Distance squared = 589.062500
+In request_neighbour(type=get,to_transfer=A20): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A20),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A20) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A20
+Sent command to neighbour A20
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A20 0 5003 5
+Client side:A20,0,5003,5
+got lock type
+> NOT FOUND A20
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A20 0 5044 5
+key value str:A20 0 5044 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A21 projects to (31.000000,31.000000)
+Point (31.000000,31.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A21 projects to (31.000000,31.000000)
+Distance squared = 648.562500
+In request_neighbour(type=get,to_transfer=A21): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A21),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A21) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A21
+Sent command to neighbour A21
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A21 0 5003 5
+Client side:A21,0,5003,5
+got lock type
+> NOT FOUND A21
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A21 0 5048 5
+key value str:A21 0 5048 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A22 projects to (32.000000,32.000000)
+Point (32.000000,32.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A22 projects to (32.000000,32.000000)
+Distance squared = 712.062500
+In request_neighbour(type=get,to_transfer=A22): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A22),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A22) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A22
+Sent command to neighbour A22
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A22 0 5003 5
+Client side:A22,0,5003,5
+got lock type
+> NOT FOUND A22
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A22 0 5051 5
+key value str:A22 0 5051 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A23 projects to (33.000000,33.000000)
+Point (33.000000,33.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A23 projects to (33.000000,33.000000)
+Distance squared = 779.562500
+In request_neighbour(type=get,to_transfer=A23): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A23),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A23) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A23
+Sent command to neighbour A23
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A23 0 5003 5
+Client side:A23,0,5003,5
+got lock type
+> NOT FOUND A23
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A23 0 5053 5
+key value str:A23 0 5053 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A24 projects to (34.000000,34.000000)
+Point (34.000000,34.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A24 projects to (34.000000,34.000000)
+Distance squared = 851.062500
+In request_neighbour(type=get,to_transfer=A24): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A24),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A24) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A24
+Sent command to neighbour A24
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A24 0 5003 5
+Client side:A24,0,5003,5
+got lock type
+> NOT FOUND A24
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A24 0 5056 5
+key value str:A24 0 5056 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A25 projects to (35.000000,35.000000)
+Point (35.000000,35.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A25 projects to (35.000000,35.000000)
+Distance squared = 926.562500
+In request_neighbour(type=get,to_transfer=A25): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A25),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A25) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A25
+Sent command to neighbour A25
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A25 0 5003 5
+Client side:A25,0,5003,5
+got lock type
+> NOT FOUND A25
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A25 0 5059 5
+key value str:A25 0 5059 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A26 projects to (36.000000,36.000000)
+Point (36.000000,36.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A26 projects to (36.000000,36.000000)
+Distance squared = 1006.062500
+In request_neighbour(type=get,to_transfer=A26): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A26),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A26) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A26
+Sent command to neighbour A26
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A26 0 5003 5
+Client side:A26,0,5003,5
+got lock type
+> NOT FOUND A26
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A26 0 5061 5
+key value str:A26 0 5061 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A27 projects to (37.000000,37.000000)
+Point (37.000000,37.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A27 projects to (37.000000,37.000000)
+Distance squared = 1089.562500
+In request_neighbour(type=get,to_transfer=A27): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A27),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A27) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A27
+Sent command to neighbour A27
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A27 0 5003 5
+Client side:A27,0,5003,5
+got lock type
+> NOT FOUND A27
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A27 0 5064 5
+key value str:A27 0 5064 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A28 projects to (38.000000,38.000000)
+Point (38.000000,38.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A28 projects to (38.000000,38.000000)
+Distance squared = 1177.062500
+In request_neighbour(type=get,to_transfer=A28): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A28),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A28) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A28
+Sent command to neighbour A28
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A28 0 5003 5
+Client side:A28,0,5003,5
+got lock type
+> NOT FOUND A28
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A28 0 5067 5
+key value str:A28 0 5067 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A29 projects to (39.000000,39.000000)
+Point (39.000000,39.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A29 projects to (39.000000,39.000000)
+Distance squared = 1268.562500
+In request_neighbour(type=get,to_transfer=A29): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A29),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A29) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A29
+Sent command to neighbour A29
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A29 0 5003 5
+Client side:A29,0,5003,5
+got lock type
+> NOT FOUND A29
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A29 0 5070 5
+key value str:A29 0 5070 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A30 projects to (13.000000,13.000000)
+got lock type
+> FOUND KEY A30
+STRING:A30 0 5003 5
+key value str:A30 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A31 projects to (14.000000,14.000000)
+got lock type
+> FOUND KEY A31
+STRING:A31 0 5003 5
+key value str:A31 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A32 projects to (15.000000,15.000000)
+got lock type
+> FOUND KEY A32
+STRING:A32 0 5003 5
+key value str:A32 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A33 projects to (16.000000,16.000000)
+got lock type
+> FOUND KEY A33
+STRING:A33 0 5003 5
+key value str:A33 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A34 projects to (17.000000,17.000000)
+got lock type
+> FOUND KEY A34
+STRING:A34 0 5003 5
+key value str:A34 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A35 projects to (18.000000,18.000000)
+got lock type
+> FOUND KEY A35
+STRING:A35 0 5003 5
+key value str:A35 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A36 projects to (19.000000,19.000000)
+got lock type
+> FOUND KEY A36
+STRING:A36 0 5003 5
+key value str:A36 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A37 projects to (20.000000,20.000000)
+got lock type
+> FOUND KEY A37
+STRING:A37 0 5003 5
+key value str:A37 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A38 projects to (21.000000,21.000000)
+got lock type
+> FOUND KEY A38
+STRING:A38 0 5003 5
+key value str:A38 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A39 projects to (22.000000,22.000000)
+got lock type
+> FOUND KEY A39
+STRING:A39 0 5003 5
+key value str:A39 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A40 projects to (46.000000,46.000000)
+Point (46.000000,46.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A40 projects to (46.000000,46.000000)
+Distance squared = 2021.062500
+In request_neighbour(type=get,to_transfer=A40): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A40),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A40) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A40
+Sent command to neighbour A40
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A40 0 5003 5
+Client side:A40,0,5003,5
+got lock type
+> NOT FOUND A40
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A40 0 5086 5
+key value str:A40 0 5086 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A41 projects to (47.000000,47.000000)
+Point (47.000000,47.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A41 projects to (47.000000,47.000000)
+Distance squared = 2144.562500
+In request_neighbour(type=get,to_transfer=A41): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A41),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A41) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A41
+Sent command to neighbour A41
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A41 0 5003 5
+Client side:A41,0,5003,5
+got lock type
+> NOT FOUND A41
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A41 0 5089 5
+key value str:A41 0 5089 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A42 projects to (48.000000,48.000000)
+Point (48.000000,48.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A42 projects to (48.000000,48.000000)
+Distance squared = 2272.062500
+In request_neighbour(type=get,to_transfer=A42): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A42),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A42) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A42
+Sent command to neighbour A42
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A42 0 5003 5
+Client side:A42,0,5003,5
+got lock type
+> NOT FOUND A42
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A42 0 5092 5
+key value str:A42 0 5092 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A43 projects to (49.000000,49.000000)
+Point (49.000000,49.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A43 projects to (49.000000,49.000000)
+Distance squared = 2403.562500
+In request_neighbour(type=get,to_transfer=A43): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A43),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A43) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A43
+Sent command to neighbour A43
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A43 0 5003 5
+Client side:A43,0,5003,5
+got lock type
+> NOT FOUND A43
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A43 0 5094 5
+key value str:A43 0 5094 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A50 projects to (29.000000,29.000000)
+Point (29.000000,29.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A50 projects to (29.000000,29.000000)
+Distance squared = 533.562500
+In request_neighbour(type=get,to_transfer=A50): attempting to connect_to localhost:64673
+In request_neighbour(type=get,to_transfer=A50),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A50) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A50
+Sent command to neighbour A50
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A50 0 5003 5
+Client side:A50,0,5003,5
+got lock type
+> NOT FOUND A50
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A50 0 5097 5
+key value str:A50 0 5097 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A0 projects to (2.000000,2.000000)
+Point (2.000000,2.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A0 projects to (2.000000,2.000000)
+In request_neighbour(type=get,to_transfer=A0): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A0),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A0) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A0
+Sent command to neighbour A0
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A0 0 5003 5
+Client side:A0,0,5003,5
+got lock type
+> NOT FOUND A0
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A0 0 5100 5
+key value str:A0 0 5100 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A1 projects to (3.000000,3.000000)
+Point (3.000000,3.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A1 projects to (3.000000,3.000000)
+In request_neighbour(type=get,to_transfer=A1): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A1),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A1) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A1
+Sent command to neighbour A1
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A1 0 5003 5
+Client side:A1,0,5003,5
+got lock type
+> NOT FOUND A1
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A1 0 5103 5
+key value str:A1 0 5103 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A2 projects to (4.000000,4.000000)
+Point (4.000000,4.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A2 projects to (4.000000,4.000000)
+In request_neighbour(type=get,to_transfer=A2): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A2),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A2) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A2
+Sent command to neighbour A2
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A2 0 5003 5
+Client side:A2,0,5003,5
+got lock type
+> NOT FOUND A2
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A2 0 5105 5
+key value str:A2 0 5105 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A3 projects to (5.000000,5.000000)
+Point (5.000000,5.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A3 projects to (5.000000,5.000000)
+In request_neighbour(type=get,to_transfer=A3): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A3),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A3) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A3
+Sent command to neighbour A3
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A3 0 5003 5
+Client side:A3,0,5003,5
+got lock type
+> NOT FOUND A3
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A3 0 5108 5
+key value str:A3 0 5108 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A4 projects to (6.000000,6.000000)
+Point (6.000000,6.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A4 projects to (6.000000,6.000000)
+In request_neighbour(type=get,to_transfer=A4): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A4),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A4) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A4
+Sent command to neighbour A4
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A4 0 5003 5
+Client side:A4,0,5003,5
+got lock type
+> NOT FOUND A4
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A4 0 5111 5
+key value str:A4 0 5111 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A5 projects to (7.000000,7.000000)
+Point (7.000000,7.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A5 projects to (7.000000,7.000000)
+In request_neighbour(type=get,to_transfer=A5): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A5),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A5) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A5
+Sent command to neighbour A5
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A5 0 5003 5
+Client side:A5,0,5003,5
+got lock type
+> NOT FOUND A5
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A5 0 5113 5
+key value str:A5 0 5113 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A6 projects to (8.000000,8.000000)
+Point (8.000000,8.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A6 projects to (8.000000,8.000000)
+In request_neighbour(type=get,to_transfer=A6): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A6),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A6) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A6
+Sent command to neighbour A6
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A6 0 5003 5
+Client side:A6,0,5003,5
+got lock type
+> NOT FOUND A6
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A6 0 5116 5
+key value str:A6 0 5116 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A7 projects to (9.000000,9.000000)
+Point (9.000000,9.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A7 projects to (9.000000,9.000000)
+In request_neighbour(type=get,to_transfer=A7): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A7),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A7) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A7
+Sent command to neighbour A7
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A7 0 5003 5
+Client side:A7,0,5003,5
+got lock type
+> NOT FOUND A7
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A7 0 5119 5
+key value str:A7 0 5119 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A8 projects to (10.000000,10.000000)
+Point (10.000000,10.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A8 projects to (10.000000,10.000000)
+In request_neighbour(type=get,to_transfer=A8): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A8),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A8) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A8
+Sent command to neighbour A8
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A8 0 5003 5
+Client side:A8,0,5003,5
+got lock type
+> NOT FOUND A8
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A8 0 5121 5
+key value str:A8 0 5121 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A9 projects to (11.000000,11.000000)
+Point (11.000000,11.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A9 projects to (11.000000,11.000000)
+In request_neighbour(type=get,to_transfer=A9): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A9),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A9) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A9
+Sent command to neighbour A9
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A9 0 5003 5
+Client side:A9,0,5003,5
+got lock type
+> NOT FOUND A9
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A9 0 5124 5
+key value str:A9 0 5124 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A13 projects to (0.000000,0.000000)
+Point (0.000000,0.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A13 projects to (0.000000,0.000000)
+In request_neighbour(type=get,to_transfer=A13): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A13),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A13) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A13
+Sent command to neighbour A13
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A13 0 5003 5
+Client side:A13,0,5003,5
+got lock type
+> NOT FOUND A13
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A13 0 5127 5
+key value str:A13 0 5127 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A14 projects to (1.000000,1.000000)
+Point (1.000000,1.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A14 projects to (1.000000,1.000000)
+In request_neighbour(type=get,to_transfer=A14): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A14),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A14) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A14
+Sent command to neighbour A14
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A14 0 5003 5
+Client side:A14,0,5003,5
+got lock type
+> NOT FOUND A14
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A14 0 5130 5
+key value str:A14 0 5130 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A15 projects to (2.000000,2.000000)
+Point (2.000000,2.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A15 projects to (2.000000,2.000000)
+In request_neighbour(type=get,to_transfer=A15): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A15),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A15) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A15
+Sent command to neighbour A15
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A15 0 5003 5
+Client side:A15,0,5003,5
+got lock type
+> NOT FOUND A15
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A15 0 5132 5
+key value str:A15 0 5132 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A16 projects to (3.000000,3.000000)
+Point (3.000000,3.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A16 projects to (3.000000,3.000000)
+In request_neighbour(type=get,to_transfer=A16): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A16),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A16) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A16
+Sent command to neighbour A16
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A16 0 5003 5
+Client side:A16,0,5003,5
+got lock type
+> NOT FOUND A16
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A16 0 5135 5
+key value str:A16 0 5135 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A17 projects to (4.000000,4.000000)
+Point (4.000000,4.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A17 projects to (4.000000,4.000000)
+In request_neighbour(type=get,to_transfer=A17): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A17),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A17) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A17
+Sent command to neighbour A17
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A17 0 5003 5
+Client side:A17,0,5003,5
+got lock type
+> NOT FOUND A17
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A17 0 5138 5
+key value str:A17 0 5138 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A18 projects to (5.000000,5.000000)
+Point (5.000000,5.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A18 projects to (5.000000,5.000000)
+In request_neighbour(type=get,to_transfer=A18): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A18),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A18) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A18
+Sent command to neighbour A18
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A18 0 5003 5
+Client side:A18,0,5003,5
+got lock type
+> NOT FOUND A18
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A18 0 5140 5
+key value str:A18 0 5140 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A19 projects to (6.000000,6.000000)
+Point (6.000000,6.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A19 projects to (6.000000,6.000000)
+In request_neighbour(type=get,to_transfer=A19): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A19),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A19) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A19
+Sent command to neighbour A19
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A19 0 5003 5
+Client side:A19,0,5003,5
+got lock type
+> NOT FOUND A19
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A19 0 5143 5
+key value str:A19 0 5143 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A30 projects to (13.000000,13.000000)
+got lock type
+> FOUND KEY A30
+STRING:A30 0 5003 5
+key value str:A30 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A31 projects to (14.000000,14.000000)
+got lock type
+> FOUND KEY A31
+STRING:A31 0 5003 5
+key value str:A31 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A32 projects to (15.000000,15.000000)
+got lock type
+> FOUND KEY A32
+STRING:A32 0 5003 5
+key value str:A32 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A33 projects to (16.000000,16.000000)
+got lock type
+> FOUND KEY A33
+STRING:A33 0 5003 5
+key value str:A33 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A34 projects to (17.000000,17.000000)
+got lock type
+> FOUND KEY A34
+STRING:A34 0 5003 5
+key value str:A34 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A35 projects to (18.000000,18.000000)
+got lock type
+> FOUND KEY A35
+STRING:A35 0 5003 5
+key value str:A35 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A36 projects to (19.000000,19.000000)
+got lock type
+> FOUND KEY A36
+STRING:A36 0 5003 5
+key value str:A36 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A37 projects to (20.000000,20.000000)
+got lock type
+> FOUND KEY A37
+STRING:A37 0 5003 5
+key value str:A37 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A38 projects to (21.000000,21.000000)
+got lock type
+> FOUND KEY A38
+STRING:A38 0 5003 5
+key value str:A38 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A39 projects to (22.000000,22.000000)
+got lock type
+> FOUND KEY A39
+STRING:A39 0 5003 5
+key value str:A39 0 5003 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A44 projects to (0.000000,0.000000)
+Point (0.000000,0.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A44 projects to (0.000000,0.000000)
+In request_neighbour(type=get,to_transfer=A44): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A44),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A44) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A44
+Sent command to neighbour A44
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A44 0 5003 5
+Client side:A44,0,5003,5
+got lock type
+> NOT FOUND A44
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A44 0 5160 5
+key value str:A44 0 5160 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A45 projects to (1.000000,1.000000)
+Point (1.000000,1.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A45 projects to (1.000000,1.000000)
+In request_neighbour(type=get,to_transfer=A45): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A45),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A45) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A45
+Sent command to neighbour A45
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A45 0 5003 5
+Client side:A45,0,5003,5
+got lock type
+> NOT FOUND A45
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A45 0 5163 5
+key value str:A45 0 5163 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A46 projects to (2.000000,2.000000)
+Point (2.000000,2.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A46 projects to (2.000000,2.000000)
+In request_neighbour(type=get,to_transfer=A46): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A46),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A46) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A46
+Sent command to neighbour A46
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A46 0 5003 5
+Client side:A46,0,5003,5
+got lock type
+> NOT FOUND A46
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A46 0 5165 5
+key value str:A46 0 5165 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A47 projects to (3.000000,3.000000)
+Point (3.000000,3.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A47 projects to (3.000000,3.000000)
+In request_neighbour(type=get,to_transfer=A47): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A47),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A47) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A47
+Sent command to neighbour A47
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A47 0 5003 5
+Client side:A47,0,5003,5
+got lock type
+> NOT FOUND A47
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A47 0 5168 5
+key value str:A47 0 5168 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A48 projects to (4.000000,4.000000)
+Point (4.000000,4.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A48 projects to (4.000000,4.000000)
+In request_neighbour(type=get,to_transfer=A48): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A48),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A48) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A48
+Sent command to neighbour A48
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A48 0 5003 5
+Client side:A48,0,5003,5
+got lock type
+> NOT FOUND A48
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A48 0 5171 5
+key value str:A48 0 5171 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key A49 projects to (5.000000,5.000000)
+Point (5.000000,5.000000)
+ is not in zoneboundry([12.500000,0.000000],[25.000000,50.000000])
+Key A49 projects to (5.000000,5.000000)
+In request_neighbour(type=get,to_transfer=A49): attempting to connect_to localhost:64665
+In request_neighbour(type=get,to_transfer=A49),client: connect: Connection refused
+In request_neighbour(type=get,to_transfer=A49) : client: connected successfully to 127.0.0.1:64665(Ignore previous errors for this)
+request_neighbour : sending type get
+request_neighbour : sending key/command A49
+Sent command to neighbour A49
+get request propagation received value in binary from neighbour, value is abcde
+buf is : A49 0 5003 5
+Client side:A49,0,5003,5
+got lock type
+> NOT FOUND A49
+Received in global: abcde
+ptr=a,glob=a
+ptr=b,glob=b
+ptr=c,glob=c
+ptr=d,glob=d
+ptr=e,glob=e
+Copied into ptr:
+
+STRING:A49 0 5173 5
+key value str:A49 0 5173 5
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key B20 projects to (19.000000,19.000000)
+got lock type
+> NOT FOUND B20
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+Key B20 projects to (19.000000,19.000000)
+got lock type
+> NOT FOUND B20
+node_propagation_thread_routine : server: waiting for connections...
+node_propagation_thread_routine : server: got connection from 127.0.0.1
+received B20 0 5000 5
+Client side:B20,0,5000,5
+got lock type
+> NOT FOUND B20
+store_key_value key B20
+value recd iss:abcde
+value recd iss2:abcde
+
+,temp:
+got lock type
+all_keys:(10,[A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,])
+all_keys:(11,[A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,B20,])
+got lock type
+> NOT FOUND A49 0 5173 5
+Key A49 0 5173 5 projects to (46.000000,46.000000)
+storing key A49 0 5173 5 on neighbour
+going_to_transfer:
+Key A49 0 5173 5 projects to (46.000000,46.000000)
+Distance squared = 2021.062500
+In request_neighbour(type=set,to_transfer=): attempting to connect_to localhost:64673
+In request_neighbour(type=set,to_transfer=),client: connect: Connection refused
+In request_neighbour(type=set,to_transfer=) : client: connected successfully to 127.0.0.1:64673(Ignore previous errors for this)
+request_neighbour : sending type set
+request_neighbour : sending key/command
+Sent command to neighbour
+You should not have reached here!!!!!%
