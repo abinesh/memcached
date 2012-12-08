@@ -3221,6 +3221,16 @@ static void print_ecosystem(){
     fprintf(stderr,"------------\n");
 }
 
+static void pretty_print(char *str,int len){
+    int i=0;
+    char *ptr= str;
+    for (i = 0;i<len;i++)
+    {
+        fprintf(stderr,"%c",*ptr);
+        ptr++;
+    }
+    fprintf(stderr,"end of pretty print \n");
+}
 
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
@@ -3288,7 +3298,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         add_iov(c, " ", 1);
                         add_iov(c,  length_as_str, strlen(length_as_str));
                         add_iov(c, "\r\n", 2);
-                        add_iov(c, global_data_entry, strlen(global_data_entry));
+                        pretty_print(global_data_entry,length);
+                        add_iov(c, global_data_entry,length);
                         add_iov(c, "\r\n", 2);
                     }
                 }
@@ -4243,6 +4254,8 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 		//adding zero
 		usleep(100000);
         char *v = ITEM_data(it);
+        fprintf(stderr,"V is %s\n",v);
+        pretty_print(v,it->nbytes-2);
         send(neighbour_fd,v,it->nbytes-2,0);
 	} else {
 		send(neighbour_fd, "NOT FOUND", 9, 0);
