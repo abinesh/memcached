@@ -3063,6 +3063,25 @@ static int find_port(int *sock_desc){
 		return portno;
 }
 
+static void pretty_print(char *str,int len){
+    int i=0;
+    char *ptr= str;
+    fprintf(stderr,"Character by character:\n");
+    for (i = 0;i<len;i++)
+    {
+        fprintf(stderr,"%d:%c:%d\n",i,*ptr,*ptr);
+        ptr++;
+    }
+    ptr=str;
+    fprintf(stderr,"\nSingle line:\n");
+    for (i = 0;i<len;i++)
+    {
+        fprintf(stderr,"%c",*ptr);
+        ptr++;
+    }
+    fprintf(stderr,"\nend of pretty print \n");
+}
+
 char global_data_entry[1024];
 static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour,item* it) {
 	int sockfd;
@@ -3092,6 +3111,7 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
         if(it){
             char *v = ITEM_data(it);
             send(sockfd,v,it->nbytes,0);
+            pretty_print(v,it->nbytes);
             fprintf(stderr,"Sent binary value to neighbour successfully\n");
         }
         else{
@@ -3219,17 +3239,6 @@ static void print_ecosystem(){
         }
     }
     fprintf(stderr,"------------\n");
-}
-
-static void pretty_print(char *str,int len){
-    int i=0;
-    char *ptr= str;
-    for (i = 0;i<len;i++)
-    {
-        fprintf(stderr,"%c",*ptr);
-        ptr++;
-    }
-    fprintf(stderr,"end of pretty print \n");
 }
 
 /* ntokens is overwritten here... shrug.. */
@@ -3429,6 +3438,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 					}
 				}
 
+
+                pretty_print(ITEM_data(it), it->nbytes);
 				if (settings.verbose > 1)
 					fprintf(stderr, ">%d sending key %s\n", c->sfd,
 							ITEM_key(it));
@@ -3971,7 +3982,7 @@ static void delete_key_on_child(int child_fd, char *key) {
 	usleep(1000);
 }
 
-static void receive_and_store_key_value(int sockfd){
+static void receive_and_store_key_value(int sockfd,char* out_param_key,char *out_buf){
     char key[1024];
 	int flag1, flag2, flag3, numbytes;
 
@@ -4000,8 +4011,8 @@ static void receive_and_store_key_value(int sockfd){
     char *temp;
     int count = 0;
     recv(sockfd, ptr, 1024,0);
-    fprintf(stderr,"value recd iss:%s",ptr);
     count=strlen(ptr);
+    pretty_print(ptr,count);
 
     temp=ptr+count;
 
@@ -4016,6 +4027,12 @@ static void receive_and_store_key_value(int sockfd){
     mylist_delete(&list_of_keys, key);
     mylist_add(&list_of_keys, key);
     pthread_mutex_unlock(&list_of_keys_lock);
+    if(out_param_key){
+        strcpy(out_param_key,key);
+    }
+    if(out_buf){
+        strcpy(out_buf,buf2);
+    }
 }
 
 static void _receive_keys_and_trash_keys(int sockfd) {
@@ -4033,7 +4050,7 @@ static void _receive_keys_and_trash_keys(int sockfd) {
 			total_keys_to_be_received);
 
 	for (i = 0; i < total_keys_to_be_received; i++) {
-	    receive_and_store_key_value(sockfd);
+	    receive_and_store_key_value(sockfd,NULL,NULL);
 	}
 
 	// The following should not be required, but without it, parent didn't receive trash list keys from child when child was departing
@@ -4095,7 +4112,7 @@ static void _migrate_key_values(int another_node_fd, my_list keys_to_send) {
 		char *key = keys_to_send.array[i];
 		if(mylist_contains(&trash_both,key) != 1){
 			//adding one more zero
-            usleep(100000);
+            usleep(1000000);
             fprintf(stderr,"key to migrate is %s\n",key);
             fprintf(stderr,"length is %d\n",(int)strlen(key));
             item *it = item_get(key, strlen(key));
@@ -4266,6 +4283,9 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
     char to_transfer[1024];
     char buf[1024];
     item *it = item_get(key_to_transfer, strlen(key_to_transfer));
+    fprintf(stderr,"Caller: just after storing the key value locally\n");
+    char *ppp = ITEM_data(it);
+    pretty_print(ppp,it->nbytes);
 
     Point resolved_point = key_point(key_to_transfer);
     if (is_within_boundary(resolved_point, me.boundary) != 1) {
@@ -4273,7 +4293,8 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
             fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
             // the +4 in the next line removes "set " from command_to_transfer
             sprintf(to_transfer, "%s", (command_to_transfer+4));
-            fprintf(stderr,"going_to_transfer:%s\n",to_transfer);
+            fprintf(stderr,"command_to_transfer is %s\n",command_to_transfer);
+            fprintf(stderr,"to_transfer:%s\n",to_transfer);
             node_info info = get_neighbour_information(key_to_transfer);
             request_neighbour(to_transfer, buf, "set",&info,it);
         }
@@ -4290,9 +4311,11 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
 
 static void updating_key_from_neighbour(int new_fd){
 	char key[1024];
-    receive_and_store_key_value(new_fd);
+	char command_to_transfer_second_half[1024];
+    receive_and_store_key_value(new_fd,key,command_to_transfer_second_half);
 
 	if(mode == NORMAL_NODE){
+	    sprintf(command_to_transfer,"set %s",command_to_transfer_second_half);
 	    _propagate_update_command_if_required(key);
     }
     else
