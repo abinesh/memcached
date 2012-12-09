@@ -3092,12 +3092,12 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
     sockfd = connect_to("localhost",neighbour->request_propogation,str);
 
     ///imp sleep..increased two zero.
-    usleep(100000);
+    usleep(1000);
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending type %s\n", type);
 	send(sockfd, type, strlen(type), 0);
 	///imp sleep..increased two zero.
-	usleep(1000000);
+	usleep(1000);
 
 	memset(buf, '\0', 1024);
 	fprintf(stderr,"request_neighbour : sending key/command %s\n", key);
@@ -3107,7 +3107,7 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	if(strcmp(type,"set")==0){
 		///imp sleep..increased two zero.
 
-	    usleep(100000);
+	    usleep(1000);
         if(it){
             char *v = ITEM_data(it);
             send(sockfd,v,it->nbytes,0);
@@ -3121,7 +3121,7 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 	}
 
 	//increasing 0
-    usleep(100000);
+    usleep(1000);
     memset(buf, '\0', 1024);
 
 	if (strcmp(type,"get")==0){
@@ -3285,7 +3285,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     node_info info = get_neighbour_information(key);
 
                     //adding sleep
-                    usleep(100000);
+                    usleep(1000);
 
 
                     request_neighbour(key,buf,"get",&info,NULL);
@@ -3977,7 +3977,7 @@ static void delete_key_locally(char *key) {
 }
 static void delete_key_on_child(int child_fd, char *key) {
 	//adding sleep before...
-	usleep(100000);
+	usleep(1000);
 	send(child_fd, key, strlen(key), 0);
 	usleep(1000);
 }
