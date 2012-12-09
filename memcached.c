@@ -143,7 +143,7 @@ static my_list trash_both;
 #define MERGING_CHILD_MIGRATING 8
 
 static int mode;
-char command_to_transfer[1024];
+char set_command_to_execute[1024];
 char key_to_transfer[1024];
 
 /* This reduces the latency without adding lots of extra wiring to be able to
@@ -4290,9 +4290,9 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
     if (is_within_boundary(resolved_point, me.boundary) != 1) {
         if(mylist_contains(&trash_both,key_to_transfer)!=1) {
             fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
-            // the +4 in the next line removes "set " from command_to_transfer
-            sprintf(to_transfer, "%s", (command_to_transfer+4));
-            fprintf(stderr,"command_to_transfer is %s\n",command_to_transfer);
+            // the +4 in the next line removes "set " from set_command_to_execute
+            sprintf(to_transfer, "%s", (set_command_to_execute+4));
+            fprintf(stderr,"set_command_to_execute is %s\n",set_command_to_execute);
             fprintf(stderr,"to_transfer:%s\n",to_transfer);
             node_info info = get_neighbour_information(key_to_transfer);
             request_neighbour(to_transfer, buf, "set",&info,it);
@@ -4310,11 +4310,12 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
 
 static void updating_key_from_neighbour(int new_fd){
 	char key[1024];
-	char command_to_transfer_second_half[1024];
-    receive_and_store_key_value(new_fd,key,command_to_transfer_second_half);
+	char set_command_to_execute_second_half[1024];
+    receive_and_store_key_value(new_fd,key,set_command_to_execute_second_half);
+    fprintf(stderr,"set_command_to_execute_second_half=%s\n",set_command_to_execute_second_half);
 
 	if(mode == NORMAL_NODE){
-	    sprintf(command_to_transfer,"set %s",command_to_transfer_second_half);
+	    sprintf(set_command_to_execute,"set %s",set_command_to_execute_second_half);
 	    _propagate_update_command_if_required(key);
     }
     else
@@ -5253,7 +5254,7 @@ static void process_command(conn *c, char *command) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "<%d %s\n", c->sfd, command);
 
-	sprintf(command_to_transfer, "%s", command);
+	sprintf(set_command_to_execute, "%s", command);
 	/*
 	 * for commands set/add/replace, we build an item and read the data
 	 * directly into it, then continue in nread_complete().
@@ -6034,7 +6035,7 @@ while (!stop) {
 		break;
 
 	case conn_write:
-	    if(previous_state == conn_nread){
+	    if(previous_state == conn_nread && strncmp(set_command_to_execute,"set ",4)==0){
             _propagate_update_command_if_required(key_to_transfer);
             previous_state = -1;
         }
