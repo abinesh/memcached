@@ -4647,7 +4647,7 @@ static void _send_add_remove_update_neighbour_command(char *command,int neighbou
         perror("send");
 
     //adding zero
-    usleep(100000);
+    usleep(1000);
     memset(buf,'\0',1024);
     serialize_port_numbers(n.request_propogation, n.node_removal,buf);
     fprintf(stderr,"Sending %s\n",buf);
@@ -4655,7 +4655,7 @@ static void _send_add_remove_update_neighbour_command(char *command,int neighbou
         perror("send");
 
     //adding zero
-    usleep(100000);
+    usleep(1000);
     memset(buf,'\0',1024);
     serialize_boundary(n.boundary,buf);
     fprintf(stderr,"Sending %s\n",buf);
@@ -4858,10 +4858,10 @@ static int send_neighbours_to_child(int new_fd){
 	        serialize_boundary(neighbour[counter].boundary,boundary_str);
 
 	        //adding usleep
-	        usleep(100000);
+	        usleep(1000);
 	        send(new_fd,boundary_str,strlen(boundary_str),0);
 	        //adding zero
-	        usleep(100000);
+	        usleep(1000);
 	        serialize_port_numbers(neighbour[counter].request_propogation,neighbour[counter].node_removal,port_number_str);
 	        send(new_fd,port_number_str,strlen(port_number_str),0);
 	        return counter;
@@ -4971,19 +4971,19 @@ static void *join_request_listener_thread_routine(void * args) {
 
         mylist_init("trash_both",&trash_both);
         //adding usleep
-        usleep(100000);
+        usleep(1000);
 		if (send(new_fd, client_boundary_str, strlen(client_boundary_str), 0) == -1)
 			perror("send");
 
 		//adding zero
-		usleep(100000);
+		usleep(1000);
 		if (send(new_fd, my_new_boundary_str, strlen(my_new_boundary_str), 0) == -1)
             perror("send");
 
 		serialize_port_numbers(me.request_propogation, me.node_removal,buf);
 
 		//adding zero
-		usleep(100000);
+		usleep(1000);
 		fprintf(stderr,"\nsending portnumbers:%s\n",buf);
 
 		if (send(new_fd, buf, strlen(buf), 0) == -1)
