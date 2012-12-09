@@ -4281,7 +4281,7 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 	}
 }
 
-static void _propagate_update_command_if_required(char *key_to_transfer){
+static void _propagate_update_command_if_required(char *key_to_transfer,char *set_command_to_execute){
     char to_transfer[1024];
     char buf[1024];
     item *it = item_get(key_to_transfer, strlen(key_to_transfer));
@@ -4293,7 +4293,6 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
         if(mylist_contains(&trash_both,key_to_transfer)!=1) {
             fprintf(stderr,"storing key %s on neighbour\n",key_to_transfer);
             // the +4 in the next line removes "set " from set_command_to_execute
-            char *set_command_to_execute=(char*)pthread_getspecific(set_command_to_execute_t);
             sprintf(to_transfer, "%s", (set_command_to_execute+4));
             fprintf(stderr,"set_command_to_execute is %s\n",set_command_to_execute);
             fprintf(stderr,"to_transfer:%s\n",to_transfer);
@@ -4318,10 +4317,9 @@ static void updating_key_from_neighbour(int new_fd){
     fprintf(stderr,"set_command_to_execute_second_half=%s\n",set_command_to_execute_second_half);
 
 	if(mode == NORMAL_NODE){
-        char *set_command_to_execute=(char*)malloc(sizeof(char)*1024);
+        char set_command_to_execute[1024];
 	    sprintf(set_command_to_execute,"set %s",set_command_to_execute_second_half);
-	    pthread_setspecific(set_command_to_execute_t,set_command_to_execute);
-	    _propagate_update_command_if_required(key);
+	    _propagate_update_command_if_required(key,set_command_to_execute);
     }
     else
     if( mode == SPLITTING_PARENT_INIT ||
@@ -5259,9 +5257,6 @@ static void process_command(conn *c, char *command) {
 	if (settings.verbose > 1)
 		fprintf(stderr, "<%d %s\n", c->sfd, command);
 
-    char *set_command_to_execute=(char*)malloc(sizeof(char)*1024);
-	sprintf(set_command_to_execute, "%s", command);
-	pthread_setspecific(set_command_to_execute_t,set_command_to_execute);
 	/*
 	 * for commands set/add/replace, we build an item and read the data
 	 * directly into it, then continue in nread_complete().
@@ -5295,6 +5290,12 @@ static void process_command(conn *c, char *command) {
 							&& (comm = NREAD_PREPEND))
 					|| (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0
 							&& (comm = NREAD_APPEND)))) {
+
+        if(strcmp(tokens[COMMAND_TOKEN].value, "set") == 0){
+            char *set_command_to_execute=(char*)malloc(sizeof(char)*1024);
+            sprintf(set_command_to_execute, "%s", command);
+            pthread_setspecific(set_command_to_execute_t,set_command_to_execute);
+        }
 
 		process_update_command(c, tokens, ntokens, comm, false);
 
@@ -6045,13 +6046,14 @@ while (!stop) {
 
 	case conn_write:
 	    set_command_to_execute=(char*)pthread_getspecific(set_command_to_execute_t);
-	    key_to_transfer=(char*)pthread_getspecific(key_to_transfer_t);
-	    if(previous_state == conn_nread && strncmp(set_command_to_execute,"set ",4)==0){
-            _propagate_update_command_if_required(key_to_transfer);
+	    if(previous_state == conn_nread && set_command_to_execute && strncmp(set_command_to_execute,"set ",4)==0){
+            key_to_transfer=(char*)pthread_getspecific(key_to_transfer_t);
+            _propagate_update_command_if_required(key_to_transfer,set_command_to_execute);
+            free(set_command_to_execute);
             free(key_to_transfer);
             previous_state = -1;
         }
-		/*
+        /*
 		 * We want to write out a simple response. If we haven't already,
 		 * assemble it into a msgbuf list (this will be a single-entry
 		 * list for TCP or a two-entry list for UDP).
