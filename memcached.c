@@ -3063,23 +3063,23 @@ static int find_port(int *sock_desc){
 		return portno;
 }
 
-static void pretty_print(char *str,int len){
+static void pretty_print(char *str,int len,char *caller){
     int i=0;
     char *ptr= str;
-    fprintf(stderr,"Character by character:\n");
+    fprintf(stderr,"%s:Character by character:\n",caller);
     for (i = 0;i<len;i++)
     {
         fprintf(stderr,"%d:%c:%d\n",i,*ptr,*ptr);
         ptr++;
     }
     ptr=str;
-    fprintf(stderr,"\nSingle line:\n");
+    fprintf(stderr,"\n%s:Single line:\n",caller);
     for (i = 0;i<len;i++)
     {
         fprintf(stderr,"%c",*ptr);
         ptr++;
     }
-    fprintf(stderr,"\nend of pretty print \n");
+    fprintf(stderr,"\n%s:end of pretty print \n",caller);
 }
 
 char global_data_entry[1024];
@@ -3111,7 +3111,7 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
         if(it){
             char *v = ITEM_data(it);
             send(sockfd,v,it->nbytes,0);
-            pretty_print(v,it->nbytes);
+            pretty_print(v,it->nbytes,"request_neighbour,set");
             fprintf(stderr,"Sent binary value to neighbour successfully\n");
         }
         else{
@@ -3307,7 +3307,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         add_iov(c, " ", 1);
                         add_iov(c,  length_as_str, strlen(length_as_str));
                         add_iov(c, "\r\n", 2);
-                        pretty_print(global_data_entry,length);
+                        pretty_print(global_data_entry,length,"process_get,received_this_value_from_neighbour");
                         add_iov(c, global_data_entry,length);
                         add_iov(c, "\r\n", 2);
                     }
@@ -3439,7 +3439,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 				}
 
 
-                pretty_print(ITEM_data(it), it->nbytes);
+                pretty_print(ITEM_data(it), it->nbytes,"process_get_command,all_cases");
 				if (settings.verbose > 1)
 					fprintf(stderr, ">%d sending key %s\n", c->sfd,
 							ITEM_key(it));
@@ -4012,7 +4012,7 @@ static void receive_and_store_key_value(int sockfd,char* out_param_key,char *out
     int count = 0;
     recv(sockfd, ptr, 1024,0);
     count=strlen(ptr);
-    pretty_print(ptr,count);
+    pretty_print(ptr,count,"receive_and_store_key_value");
 
     temp=ptr+count;
 
@@ -4277,7 +4277,7 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 		usleep(100000);
         char *v = ITEM_data(it);
         fprintf(stderr,"V is %s\n",v);
-        pretty_print(v,it->nbytes-2);
+        pretty_print(v,it->nbytes-2,"sending_this_value_to_neighbour_when_neighbour_asks_this_key");
         send(neighbour_fd,v,it->nbytes-2,0);
 	} else {
 		send(neighbour_fd, "NOT FOUND", 9, 0);
@@ -4288,9 +4288,8 @@ static void _propagate_update_command_if_required(char *key_to_transfer){
     char to_transfer[1024];
     char buf[1024];
     item *it = item_get(key_to_transfer, strlen(key_to_transfer));
-    fprintf(stderr,"Caller: just after storing the key value locally\n");
     char *ppp = ITEM_data(it);
-    pretty_print(ppp,it->nbytes);
+    pretty_print(ppp,it->nbytes,"just_after_Storing_key_value_locally");
 
     Point resolved_point = key_point(key_to_transfer);
     if (is_within_boundary(resolved_point, me.boundary) != 1) {
