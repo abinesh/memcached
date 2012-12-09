@@ -4222,25 +4222,30 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
             node_info info = get_neighbour_information(key);
             request_neighbour(key,buf,"get",&info,NULL);
             fprintf(stderr, "buf is : %s\n",buf);
-            deserialize_key_value_str(key1, &flag1, &flag2, &flag3, buf);
-            fprintf(stderr, "Client side:%s,%d,%d,%d\n", key1, flag1, flag2, flag3);
-
-            it =  item_get(key1, strlen(key1));
-            if (it) {
-                item_unlink(it);
-                item_remove(it);
+            if(strncmp(buf,"NOT FOUND",9)==0){
+                 it=NULL;
             }
-            it = item_alloc(key1, strlen(key1), flag1, realtime(flag2), flag3+2);
+            else{
+                deserialize_key_value_str(key1, &flag1, &flag2, &flag3, buf);
+                fprintf(stderr, "Client side:%s,%d,%d,%d\n", key1, flag1, flag2, flag3);
 
-            fprintf(stderr,"Received in global: %s\n",global_data_entry);
-            ptr = ITEM_data(it);
-            for(i=0;i<flag3;i++){
-                *ptr=global_data_entry[i];
-                fprintf(stderr,"ptr=%c,glob=%c\n",*ptr,global_data_entry[i]);
-                ptr++;
+                it =  item_get(key1, strlen(key1));
+                if (it) {
+                    item_unlink(it);
+                    item_remove(it);
+                }
+                it = item_alloc(key1, strlen(key1), flag1, realtime(flag2), flag3+2);
+
+                fprintf(stderr,"Received in global: %s\n",global_data_entry);
+                ptr = ITEM_data(it);
+                for(i=0;i<flag3;i++){
+                    *ptr=global_data_entry[i];
+                    fprintf(stderr,"ptr=%c,glob=%c\n",*ptr,global_data_entry[i]);
+                    ptr++;
+                }
+                strcpy(ptr,"\r\n");
+                fprintf(stderr,"Copied into ptr: %s\n",ptr);
             }
-            strcpy(ptr,"\r\n");
-            fprintf(stderr,"Copied into ptr: %s\n",ptr);
         }
 	}
 	else
