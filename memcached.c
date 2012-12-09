@@ -4141,7 +4141,7 @@ static void _trash_keys_in_both_nodes(int child_node_fd, my_list trash_both) {
 	send(child_node_fd, buf, strlen(buf), 0);
 
 	//adding zeros
-	usleep(100000);
+	usleep(10000);
 	for (i = 0; i < trash_both.size; i++) {
 		char *key = trash_both.array[i];
 		delete_key_locally(key);
@@ -4266,10 +4266,10 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2, key_and_metadata_str);
 		fprintf(stderr,"key value str:%s\n", key_and_metadata_str);
 		//adding usleep
-		usleep(100000);
+		usleep(20000);
 		send(neighbour_fd, key_and_metadata_str, strlen(key_and_metadata_str), 0);
 		//adding zero
-		usleep(100000);
+		usleep(20000);
         char *v = ITEM_data(it);
         fprintf(stderr,"V is %s\n",v);
         pretty_print(v,it->nbytes-2,"sending_this_value_to_neighbour_when_neighbour_asks_this_key");
@@ -4492,7 +4492,7 @@ static void *node_propagation_thread_routine(void *args){
 		else if (!strcmp(buf, "set")) {
 			    updating_key_from_neighbour(new_fd);
 			    //adding usleep
-			    usleep(100000);
+			    usleep(10000);
 
             if ((numbytes = send(new_fd, "STORED", strlen("STORED"), 0)) == -1) {
                 perror("recv");
@@ -4510,7 +4510,7 @@ static void *node_propagation_thread_routine(void *args){
 
             deleting_key_from_neighbour(buf);
             //adding usleep
-            			    usleep(100000);
+            			    usleep(10000);
             if ((numbytes = send(new_fd, "DELETED", strlen("DELETED"), 0)) == -1) {
                 perror("recv");
                 exit(1);
