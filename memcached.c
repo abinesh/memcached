@@ -3079,7 +3079,7 @@ static void pretty_print(char *str,int len,char *caller){
         fprintf(stderr,"%c",*ptr);
         ptr++;
     }
-    fprintf(stderr,"\n%s:end of pretty print \n",caller);
+    fprintf(stderr,"\n%s:end of pretty print,len was %d\n",caller,len);
 }
 
 char global_data_entry[1024];
@@ -4009,19 +4009,14 @@ static void receive_and_store_key_value(int sockfd,char* out_param_key,char *out
     //reads value in binary format from network
     char *ptr = ITEM_data(it);
     char *temp;
-    int count = 0;
-    recv(sockfd, ptr, 1024,0);
-    count=strlen(ptr);
-    pretty_print(ptr,count,"receive_and_store_key_value");
-
-    temp=ptr+count;
+    read(sockfd, ptr, flag3);
+    temp=ptr+flag3;
 
 
   //  ptr=ptr+it->nbytes;
     strcpy(temp,"\r\n");
-    fprintf(stderr,"value recd iss2:%s,temp:%s",ptr,temp);
-
     item_link(it);
+    pretty_print(ITEM_data(it),flag3+2,"receive_and_store_key_value");
 
     pthread_mutex_lock(&list_of_keys_lock);
     mylist_delete(&list_of_keys, key);
