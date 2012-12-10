@@ -4251,7 +4251,7 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
                     fprintf(stderr,"ptr=%c,glob=%c\n",*ptr,global_data_entry[i]);
                     ptr++;
                 }
-                free(global_data_entry);
+                if(global_data_entry) free(global_data_entry);
                 strcpy(ptr,"\r\n");
                 fprintf(stderr,"Copied into ptr: %s\n",ptr);
             }
@@ -4280,10 +4280,10 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
 		serialize_key_value_str(key, ptr, it->exptime, it->nbytes - 2, key_and_metadata_str);
 		fprintf(stderr,"key value str:%s\n", key_and_metadata_str);
 		//adding usleep
-		usleep(20000);
+		usleep(100000);
 		send(neighbour_fd, key_and_metadata_str, strlen(key_and_metadata_str), 0);
 		//adding zero
-		usleep(20000);
+		usleep(100000);
         char *v = ITEM_data(it);
         fprintf(stderr,"V is %s\n",v);
         pretty_print(v,it->nbytes-2,"sending_this_value_to_neighbour_when_neighbour_asks_this_key");
