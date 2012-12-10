@@ -3082,7 +3082,7 @@ static void pretty_print(char *str,int len,char *caller){
     fprintf(stderr,"\n%s:end of pretty print,len was %d\n",caller,len);
 }
 
-char global_data_entry[1024];
+static pthread_key_t global_data_entry_t;
 static char *request_neighbour(char *key, char *buf, char *type,node_info *neighbour,item* it) {
 	int sockfd;
 	int MAXDATASIZE = 1024;
@@ -3126,9 +3126,12 @@ static char *request_neighbour(char *key, char *buf, char *type,node_info *neigh
 
 	if (strcmp(type,"get")==0){
         recv(sockfd, buf, 1024,0);
+        fprintf(stderr,"Received %s\n",buf);
         if(strncmp(buf,"NOT FOUND",9)){
+            char *global_data_entry=(char*)malloc(sizeof(char)*1024);
             memset(global_data_entry,'\0',1024);
             recv(sockfd, global_data_entry, 1024,0);
+            pthread_setspecific(global_data_entry_t,global_data_entry);
             fprintf(stderr,"get request propagation received value in binary from neighbour, value is %s\n",global_data_entry);
         }
     }
@@ -3290,6 +3293,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 
                     request_neighbour(key,buf,"get",&info,NULL);
                     fprintf(stderr, "buf is : %s\n",buf);
+                    char *global_data_entry=(char*)pthread_getspecific(global_data_entry_t);
                     fprintf(stderr," value is %s\n",global_data_entry);
                     if(strncmp(buf,"NOT FOUND",9))
                     {
@@ -3310,6 +3314,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         pretty_print(global_data_entry,length,"process_get,received_this_value_from_neighbour");
                         add_iov(c, global_data_entry,length);
                         add_iov(c, "\r\n", 2);
+                        free(global_data_entry);
                     }
                 }
             }
@@ -3344,6 +3349,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                             fprintf(stderr,"\n-------info-%s-\n",info.request_propogation);
 							request_neighbour(key,buf,"get",&info,NULL);
 							fprintf(stderr, "buf is : %s\n",buf);
+                            char *global_data_entry=(char*)pthread_getspecific(global_data_entry_t);
 							fprintf(stderr," value is %s\n",global_data_entry);
 							if(strncmp(buf,"NOT FOUND",9))
 							{
@@ -3361,8 +3367,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 								add_iov(c, " ", 1);
 								add_iov(c,  length_as_str, strlen(length_as_str));
 								add_iov(c, "\r\n", 2);
-								add_iov(c, global_data_entry, strlen(global_data_entry));
+                                pretty_print(global_data_entry,length,"process_get,received_this_value_from_neighbour");
+								add_iov(c, global_data_entry, length);
 								add_iov(c, "\r\n", 2);
+                                free(global_data_entry);
+
 							}
                         }
                     }
@@ -4233,6 +4242,8 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
                 }
                 it = item_alloc(key1, strlen(key1), flag1, realtime(flag2), flag3+2);
 
+                char *global_data_entry=(char*)pthread_getspecific(global_data_entry_t);
+
                 fprintf(stderr,"Received in global: %s\n",global_data_entry);
                 ptr = ITEM_data(it);
                 for(i=0;i<flag3;i++){
@@ -4240,6 +4251,7 @@ static void getting_key_from_neighbour(char *key, int neighbour_fd) {
                     fprintf(stderr,"ptr=%c,glob=%c\n",*ptr,global_data_entry[i]);
                     ptr++;
                 }
+                free(global_data_entry);
                 strcpy(ptr,"\r\n");
                 fprintf(stderr,"Copied into ptr: %s\n",ptr);
             }
